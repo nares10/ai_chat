@@ -1,7 +1,9 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
+import { useRouter } from "next/navigation";
 import MarkdownMessage from "@/components/MarkdownMessage";
+import ConfirmModal from "@/components/ConfirmModal";
 
 type Provider = "openrouter" | "openai" | "anthropic";
 
@@ -30,16 +32,60 @@ const initialMessages: Message[] = [
 ];
 
 export default function Home() {
+  const router = useRouter();
   const [messages, setMessages] = useState<Message[]>(initialMessages);
   const [input, setInput] = useState("");
   const [isLoading, setIsLoading] = useState(false);
   const [provider, setProvider] = useState<Provider>("openrouter");
+  const [user, setUser] = useState<{ id: string; email: string; name: string } | null>(null);
+  const [isCheckingAuth, setIsCheckingAuth] = useState(true);
+  const [showLogoutModal, setShowLogoutModal] = useState(false);
   const inputRef = useRef<HTMLInputElement | null>(null);
   const bottomRef = useRef<HTMLDivElement | null>(null);
 
   useEffect(() => {
     bottomRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages, isLoading]);
+
+  useEffect(() => {
+    const checkAuth = async () => {
+      try {
+        const response = await fetch("/api/auth/me");
+        if (response.ok) {
+          const data = await response.json();
+          setUser(data.user);
+        } else {
+          router.push("/login");
+        }
+      } catch (error) {
+        router.push("/login");
+      } finally {
+        setIsCheckingAuth(false);
+      }
+    };
+
+    checkAuth();
+  }, [router]);
+
+  const handleLogout = async () => {
+    setShowLogoutModal(true);
+  };
+
+  const confirmLogout = async () => {
+    setShowLogoutModal(false);
+    
+    try {
+      await fetch("/api/auth/logout", { method: "POST" });
+      router.push("/login");
+      router.refresh();
+    } catch (error) {
+      console.error("Logout failed", error);
+    }
+  };
+
+  const cancelLogout = () => {
+    setShowLogoutModal(false);
+  };
 
   const handleSubmit = async () => {
     const trimmed = input.trim();
@@ -134,6 +180,14 @@ export default function Home() {
     }
   };
 
+  if (isCheckingAuth) {
+    return (
+      <div className="flex min-h-screen items-center justify-center bg-[#0b0b0f] text-white">
+        <div className="text-zinc-400">Loading...</div>
+      </div>
+    );
+  }
+
   return (
     <main className="flex min-h-screen flex-col bg-[#0b0b0f] text-white">
       <header className="border-b border-zinc-800 bg-zinc-950/80 px-4 py-3 backdrop-blur-sm">
@@ -148,16 +202,30 @@ export default function Home() {
             </div>
           </div>
 
-          <select
-            value={provider}
-            onChange={(event) => setProvider(event.target.value as Provider)}
-            className="rounded-lg border border-zinc-700 bg-zinc-900 px-2 py-1.5 text-xs text-zinc-200 outline-none"
-            aria-label="Select AI provider"
-          >
-            <option value="openrouter">OpenRouter</option>
-            <option value="openai">OpenAI</option>
-            <option value="anthropic">Claude</option>
-          </select>
+          <div className="flex items-center gap-3">
+            <select
+              value={provider}
+              onChange={(event) => setProvider(event.target.value as Provider)}
+              className="rounded-lg border border-zinc-700 bg-zinc-900 px-2 py-1.5 text-xs text-zinc-200 outline-none"
+              aria-label="Select AI provider"
+            >
+              <option value="openrouter">OpenRouter</option>
+              <option value="openai">OpenAI</option>
+              <option value="anthropic">Claude</option>
+            </select>
+
+            <div className="flex items-center gap-2">
+              <div className="flex h-8 w-8 items-center justify-center rounded-full bg-zinc-800 text-xs font-semibold text-zinc-200">
+                {user?.name?.charAt(0).toUpperCase() || "U"}
+              </div>
+              <button
+                onClick={handleLogout}
+                className="rounded-lg border border-zinc-700 bg-zinc-900 px-3 py-1.5 text-xs text-zinc-200 transition hover:bg-zinc-800"
+              >
+                Logout
+              </button>
+            </div>
+          </div>
         </div>
       </header>
 
@@ -225,6 +293,16 @@ export default function Home() {
           </button>
         </div>
       </div>
+
+      <ConfirmModal
+        isOpen={showLogoutModal}
+        onClose={cancelLogout}
+        onConfirm={confirmLogout}
+        title="Logout"
+        message="Are you sure you want to logout?"
+        confirmText="Logout"
+        cancelText="Cancel"
+      />
     </main>
   );
 }
