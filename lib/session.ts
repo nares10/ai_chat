@@ -42,7 +42,14 @@ export async function getCurrentUser() {
       id: sessionId,
     },
     include: {
-      user: true,
+      user: {
+        select: {
+          id: true,
+          email: true,
+          name: true,
+          freeMessagesUsed: true,
+        },
+      },
     },
   });
 

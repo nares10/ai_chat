@@ -6,13 +6,13 @@ function streamSSE(data: unknown) {
   return `data: ${JSON.stringify(data)}\n\n`;
 }
 
-async function streamOpenRouter(messages: Array<{ role: string; content: string }>) {
-  const apiKey = process.env.OPENROUTER_API_KEY;
+async function streamOpenRouter(messages: Array<{ role: string; content: string }>, userApiKey?: string) {
+  const apiKey = userApiKey || process.env.OPENROUTER_API_KEY;
   const model = process.env.OPENROUTER_MODEL || "openrouter/free";
   
 
   if (!apiKey) {
-    throw new Error("OPENROUTER_API_KEY is missing. Add it to your .env.local file.");
+    throw new Error("OPENROUTER_API_KEY is missing. Add it to your .env.local file or provide an API key.");
   }
 
   const upstream = await fetch("https://openrouter.ai/api/v1/chat/completions", {
@@ -40,12 +40,12 @@ async function streamOpenRouter(messages: Array<{ role: string; content: string 
   return upstream;
 }
 
-async function streamOpenAI(messages: Array<{ role: string; content: string }>) {
-  const apiKey = process.env.OPENAI_API_KEY;
+async function streamOpenAI(messages: Array<{ role: string; content: string }>, userApiKey?: string) {
+  const apiKey = userApiKey || process.env.OPENAI_API_KEY;
   const model = process.env.OPENAI_MODEL || "gpt-4o-mini";
 
   if (!apiKey) {
-    throw new Error("OPENAI_API_KEY is missing. Add it to your .env.local file.");
+    throw new Error("OPENAI_API_KEY is missing. Add it to your .env.local file or provide an API key.");
   }
 
   const upstream = await fetch("https://api.openai.com/v1/chat/completions", {
@@ -69,12 +69,12 @@ async function streamOpenAI(messages: Array<{ role: string; content: string }>) 
   return upstream;
 }
 
-async function streamAnthropic(messages: Array<{ role: string; content: string }>) {
-  const apiKey = process.env.ANTHROPIC_API_KEY;
+async function streamAnthropic(messages: Array<{ role: string; content: string }>, userApiKey?: string) {
+  const apiKey = userApiKey || process.env.ANTHROPIC_API_KEY;
   const model = process.env.ANTHROPIC_MODEL || "claude-3-5-sonnet-20241022";
 
   if (!apiKey) {
-    throw new Error("ANTHROPIC_API_KEY is missing. Add it to your .env.local file.");
+    throw new Error("ANTHROPIC_API_KEY is missing. Add it to your .env.local file or provide an API key.");
   }
 
   const upstream = await fetch("https://api.anthropic.com/v1/messages", {
@@ -119,7 +119,29 @@ export async function POST(request: NextRequest) {
 
     const providerInput = typeof body?.provider === "string" ? body.provider : "";
     const conversationId = typeof body?.conversationId === "string" ? body.conversationId : null;
+    const apiKey = typeof body?.apiKey === "string" ? body.apiKey : null;
     const normalizedProvider = (providerInput || process.env.AI_PROVIDER || "openrouter").toLowerCase();
+
+    // Check free message limit if no API key provided
+    if (!apiKey) {
+      const FREE_MESSAGE_LIMIT = 5;
+      if (user.freeMessagesUsed >= FREE_MESSAGE_LIMIT) {
+        return NextResponse.json(
+          { 
+            error: "Free message limit reached",
+            message: `You've used your ${FREE_MESSAGE_LIMIT} free messages. Please add an API key to continue.`,
+            requiresApiKey: true
+          }, 
+          { status: 403 }
+        );
+      }
+
+      // Increment free message counter
+      await prisma.user.update({
+        where: { id: user.id },
+        data: { freeMessagesUsed: { increment: 1 } }
+      });
+    }
 
     // Create or get conversation
     let conversation;
@@ -171,11 +193,11 @@ export async function POST(request: NextRequest) {
     let upstream: Response;
 
     if (normalizedProvider === "openai") {
-      upstream = await streamOpenAI(messagesForAI);
+      upstream = await streamOpenAI(messagesForAI, apiKey || undefined);
     } else if (normalizedProvider === "anthropic" || normalizedProvider === "claude") {
-      upstream = await streamAnthropic(messagesForAI);
+      upstream = await streamAnthropic(messagesForAI, apiKey || undefined);
     } else {
-      upstream = await streamOpenRouter(messagesForAI);
+      upstream = await streamOpenRouter(messagesForAI, apiKey || undefined);
     }
 
     const encoder = new TextEncoder();

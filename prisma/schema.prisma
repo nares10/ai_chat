@@ -13,6 +13,7 @@ model User {
   email        String    @unique
   passwordHash String
   name         String?
+  freeMessagesUsed Int   @default(0)
   sessions     Session[]
   conversations Conversation[]
   apikeys      ApiKey[]
@@ -59,6 +60,7 @@ model ApiKey {
   userId    String
   key       String   @unique
   name      String
+  provider  String
   createdAt DateTime @default(now())
   user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
   @@index([userId])

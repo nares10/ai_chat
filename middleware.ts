@@ -7,13 +7,14 @@ export function middleware(request: NextRequest) {
   // Skip authentication for auth routes
   if (request.nextUrl.pathname.startsWith("/api/auth") || 
       request.nextUrl.pathname.startsWith("/login") || 
-      request.nextUrl.pathname.startsWith("/register")) {
+      request.nextUrl.pathname.startsWith("/register") ) {
     return NextResponse.next();
   }
 
   // Protect API routes
   if (request.nextUrl.pathname.startsWith("/api/chat") || 
-      request.nextUrl.pathname.startsWith("/api/conversations")) {
+      request.nextUrl.pathname.startsWith("/api/conversations") ||
+      request.nextUrl.pathname.startsWith("/api/keys")) {
     if (!sessionId) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }

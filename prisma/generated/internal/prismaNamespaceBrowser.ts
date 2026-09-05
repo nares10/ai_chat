@@ -77,6 +77,7 @@ export const UserScalarFieldEnum = {
   email: 'email',
   passwordHash: 'passwordHash',
   name: 'name',
+  freeMessagesUsed: 'freeMessagesUsed',
   createdAt: 'createdAt',
   updatedAt: 'updatedAt'
 } as const
@@ -125,6 +126,7 @@ export const ApiKeyScalarFieldEnum = {
   userId: 'userId',
   key: 'key',
   name: 'name',
+  provider: 'provider',
   createdAt: 'createdAt'
 } as const
 

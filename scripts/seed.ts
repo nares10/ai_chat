@@ -25,6 +25,7 @@ async function seed() {
 			email: 'john.doe@example.com',
 			passwordHash: passwordHash1,
 			name: 'John Doe',
+			freeMessagesUsed: 0,
 		},
 	});
 
@@ -34,6 +35,7 @@ async function seed() {
 			email: 'jane.smith@example.com',
 			passwordHash: passwordHash2,
 			name: 'Jane Smith',
+			freeMessagesUsed: 3,
 		},
 	});
 
@@ -43,6 +45,7 @@ async function seed() {
 			email: 'alex.wilson@example.com',
 			passwordHash: passwordHash3,
 			name: 'Alex Wilson',
+			freeMessagesUsed: 5,
 		},
 	});
 
@@ -70,6 +73,7 @@ async function seed() {
 			userId: user1Id,
 			key: 'sk-test-john-' + crypto.randomUUID().slice(0, 8),
 			name: 'John\'s Development Key',
+			provider: 'openai',
 		},
 	});
 
@@ -79,6 +83,7 @@ async function seed() {
 			userId: user2Id,
 			key: 'sk-test-jane-' + crypto.randomUUID().slice(0, 8),
 			name: 'Jane\'s Production Key',
+			provider: 'anthropic',
 		},
 	});
 

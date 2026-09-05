@@ -11,14 +11,14 @@
 - **Seed Data**: Realistic seed data with users, sessions, conversations, messages, and API keys
 - **Password Hashing**: Argon2 integration for secure password storage
 - **Authentication UI**: Login and registration pages with form validation
+- **Conversation History**: List of conversations with provider information
 
 ## Next:
-- [ ] Add message history (persist chat messages to database)
 - [ ] Add API key management (create, list, delete API keys)
-- [ ] Add user profile page
-- [ ] Add conversation creation/deletion
-- [ ] Add system prompt customization per conversation
 - [ ] Add model selection per conversation
 - [ ] Add message search functionality
 - [ ] Add export conversation feature
-- [ ] Add dark/light theme toggle
+
+## Fixes
+- [ ] Fix free message count not updating after sending a message
+- [ ] make sidebar and nav bar fixes at their place even when scrolling in main chat area

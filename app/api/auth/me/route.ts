@@ -20,6 +20,7 @@ export async function GET() {
           id: user.id,
           email: user.email,
           name: user.name,
+          freeMessagesUsed: user.freeMessagesUsed,
         },
       },
       { status: 200 }

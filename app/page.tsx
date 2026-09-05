@@ -4,6 +4,7 @@ import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import MarkdownMessage from "@/components/MarkdownMessage";
 import ConfirmModal from "@/components/ConfirmModal";
+import ProviderSelectModal from "@/components/ProviderSelectModal";
 
 type Provider = "openrouter" | "openai" | "anthropic";
 
@@ -33,9 +34,12 @@ export default function Home() {
   const [input, setInput] = useState("");
   const [isLoading, setIsLoading] = useState(false);
   const [provider, setProvider] = useState<Provider>("openrouter");
-  const [user, setUser] = useState<{ id: string; email: string; name: string } | null>(null);
+  const [user, setUser] = useState<{ id: string; email: string; name: string; freeMessagesUsed: number } | null>(null);
   const [isCheckingAuth, setIsCheckingAuth] = useState(true);
   const [showLogoutModal, setShowLogoutModal] = useState(false);
+  const [showProviderModal, setShowProviderModal] = useState(false);
+  const [apiKeys, setApiKeys] = useState<Array<{ id: string; name: string; provider: string; key: string }>>([]);
+  const [selectedApiKey, setSelectedApiKey] = useState<string | null>(null);
   const [conversations, setConversations] = useState<Conversation[]>([]);
   const [currentConversationId, setCurrentConversationId] = useState<string | null>(null);
   const [isLoadingConversations, setIsLoadingConversations] = useState(false);
@@ -65,6 +69,24 @@ export default function Home() {
 
     checkAuth();
   }, [router]);
+
+  useEffect(() => {
+    const loadApiKeys = async () => {
+      if (!user) return;
+      
+      try {
+        const response = await fetch("/api/keys");
+        if (response.ok) {
+          const data = await response.json();
+          setApiKeys(data.apiKeys || []);
+        }
+      } catch (error) {
+        console.error("Failed to load API keys", error);
+      }
+    };
+
+    loadApiKeys();
+  }, [user]);
 
   useEffect(() => {
     const loadConversations = async () => {
@@ -123,7 +145,16 @@ export default function Home() {
     setCurrentConversationId(null);
     setMessages(initialMessages);
     setInput("");
+    setSelectedApiKey(null);
     inputRef.current?.focus();
+  };
+
+  const handleProviderSelect = (selectedProvider: string, apiKey?: string) => {
+    setProvider(selectedProvider as Provider);
+    if (apiKey) {
+      setSelectedApiKey(apiKey);
+    }
+    setShowProviderModal(false);
   };
 
   const handleSubmit = async () => {
@@ -131,6 +162,12 @@ export default function Home() {
 
     if (!trimmed || isLoading) {
       inputRef.current?.focus();
+      return;
+    }
+
+    // Show provider modal if no provider is selected
+    if (!provider) {
+      setShowProviderModal(true);
       return;
     }
 
@@ -157,6 +194,7 @@ export default function Home() {
           message: trimmed, 
           provider,
           conversationId: currentConversationId,
+          apiKey: selectedApiKey,
         }),
       });
 
@@ -211,16 +249,24 @@ export default function Home() {
         }
       }
     } catch (error) {
-      const errorMessage: Message = {
+      let errorMessage = "Something went wrong. Please try again.";
+      
+      if (error instanceof Error) {
+        if (error.message.includes("Free message limit reached")) {
+          errorMessage = "You've used your 5 free messages. Please add an API key to continue.";
+          setShowProviderModal(true);
+        } else {
+          errorMessage = error.message;
+        }
+      }
+
+      const errorResponse: Message = {
         id: crypto.randomUUID(),
         role: "assistant",
-        text:
-          error instanceof Error
-            ? error.message
-            : "Something went wrong. Please try again.",
+        text: errorMessage,
       };
 
-      setMessages((current) => [...current, errorMessage]);
+      setMessages((current) => [...current, errorResponse]);
     } finally {
       setIsLoading(false);
       inputRef.current?.focus();
@@ -297,17 +343,6 @@ export default function Home() {
             </div>
 
             <div className="flex items-center gap-3">
-              <select
-                value={provider}
-                onChange={(event) => setProvider(event.target.value as Provider)}
-                className="rounded-lg border border-zinc-700 bg-zinc-900 px-2 py-1.5 text-xs text-zinc-200 outline-none"
-                aria-label="Select AI provider"
-              >
-                <option value="openrouter">OpenRouter</option>
-                <option value="openai">OpenAI</option>
-                <option value="anthropic">Claude</option>
-              </select>
-
               <div className="flex items-center gap-2">
                 <div className="flex h-8 w-8 items-center justify-center rounded-full bg-zinc-800 text-xs font-semibold text-zinc-200">
                   {user?.name?.charAt(0).toUpperCase() || "U"}
@@ -357,34 +392,65 @@ export default function Home() {
       </div>
 
       <div className="border-t border-zinc-800 bg-zinc-950/80 p-4 backdrop-blur-sm">
-        <div className="mx-auto flex max-w-3xl items-center gap-3 rounded-2xl border border-zinc-700 bg-zinc-900 p-2 shadow-lg shadow-black/20">
-          <input
-            ref={inputRef}
-            autoFocus
-            type="text"
-            value={input}
-            disabled={isLoading}
-            onChange={(event) => setInput(event.target.value)}
-            onKeyDown={(event) => {
-              if (event.key === "Enter") {
-                event.preventDefault();
-                void handleSubmit();
-              }
-            }}
-            placeholder={isLoading ? "Waiting for response..." : "Message Assistant..."}
-            className="flex-1 bg-transparent px-3 py-2 text-sm text-white placeholder:text-zinc-500 outline-none disabled:cursor-not-allowed disabled:opacity-60"
-          />
+        <div className="mx-auto flex max-w-3xl flex-col gap-3">
+          {/* Provider Selection */}
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-2">
+              <button
+                onClick={() => setShowProviderModal(true)}
+                className="flex items-center gap-2 rounded-lg border border-zinc-700 bg-zinc-900 px-3 py-1.5 text-xs text-zinc-200 transition hover:bg-zinc-800"
+              >
+                {provider ? (
+                  <>
+                    <span>{provider === "openrouter" ? "🌐" : provider === "openai" ? "🤖" : "🧠"}</span>
+                    <span className="font-medium">{provider === "openrouter" ? "OpenRouter" : provider === "openai" ? "OpenAI" : "Claude"}</span>
+                  </>
+                ) : (
+                  <>
+                    <span>⚡</span>
+                    <span className="font-medium">Select Provider</span>
+                  </>
+                )}
+              </button>
+              
+              {user && (
+                <div className="text-xs text-zinc-400">
+                  {user.freeMessagesUsed}/5 free messages used
+                </div>
+              )}
+            </div>
+          </div>
 
-          <button
-            type="button"
-            disabled={isLoading}
-            onClick={() => {
-              void handleSubmit();
-            }}
-            className="rounded-xl bg-white px-4 py-2 text-sm font-medium text-zinc-950 transition hover:bg-zinc-200 active:scale-[0.99] disabled:cursor-not-allowed disabled:opacity-60"
-          >
-            {isLoading ? "Sending..." : "Send"}
-          </button>
+          {/* Input Area */}
+          <div className="flex items-center gap-3 rounded-2xl border border-zinc-700 bg-zinc-900 p-2 shadow-lg shadow-black/20">
+            <input
+              ref={inputRef}
+              autoFocus
+              type="text"
+              value={input}
+              disabled={isLoading}
+              onChange={(event) => setInput(event.target.value)}
+              onKeyDown={(event) => {
+                if (event.key === "Enter") {
+                  event.preventDefault();
+                  void handleSubmit();
+                }
+              }}
+              placeholder={isLoading ? "Waiting for response..." : "Message Assistant..."}
+              className="flex-1 bg-transparent px-3 py-2 text-sm text-white placeholder:text-zinc-500 outline-none disabled:cursor-not-allowed disabled:opacity-60"
+            />
+
+            <button
+              type="button"
+              disabled={isLoading || !provider}
+              onClick={() => {
+                void handleSubmit();
+              }}
+              className="rounded-xl bg-white px-4 py-2 text-sm font-medium text-zinc-950 transition hover:bg-zinc-200 active:scale-[0.99] disabled:cursor-not-allowed disabled:opacity-60"
+            >
+              {isLoading ? "Sending..." : "Send"}
+            </button>
+          </div>
         </div>
       </div>
       </div>
@@ -397,6 +463,14 @@ export default function Home() {
         message="Are you sure you want to logout?"
         confirmText="Logout"
         cancelText="Cancel"
+      />
+
+      <ProviderSelectModal
+        isOpen={showProviderModal}
+        onClose={() => setShowProviderModal(false)}
+        onSelect={handleProviderSelect}
+        apiKeys={apiKeys}
+        isLoading={isLoadingConversations}
       />
     </main>
   );
