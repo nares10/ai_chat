@@ -6,7 +6,8 @@ function streamSSE(data: unknown) {
 
 async function streamOpenRouter(message: string) {
   const apiKey = process.env.OPENROUTER_API_KEY;
-  const model = process.env.OPENROUTER_MODEL || "openai/gpt-4o-mini";
+  const model = process.env.OPENROUTER_MODEL || "openrouter/free";
+  
 
   if (!apiKey) {
     throw new Error("OPENROUTER_API_KEY is missing. Add it to your .env.local file.");

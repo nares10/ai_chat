@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
+import MarkdownMessage from "@/components/MarkdownMessage";
 
 type Provider = "openrouter" | "openai" | "anthropic";
 
@@ -176,7 +177,7 @@ export default function Home() {
                     : "max-w-[80%] rounded-2xl rounded-bl-md bg-zinc-800 px-4 py-3 text-sm text-zinc-100"
                 }
               >
-                {message.text}
+                <MarkdownMessage text={message.text} />
               </div>
             </div>
           ))}
