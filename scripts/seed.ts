@@ -1,5 +1,5 @@
 import 'dotenv/config';
-import { prisma } from '../client';
+import { prisma } from '@/lib/prisma';
 import { hash } from 'argon2';
 
 async function seed() {
