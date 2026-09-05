@@ -8,28 +8,24 @@ import ConfirmModal from "@/components/ConfirmModal";
 type Provider = "openrouter" | "openai" | "anthropic";
 
 type Message = {
-  id: number;
+  id: string;
   role: "assistant" | "user";
   text: string;
+  conversationId?: string;
 };
 
-const initialMessages: Message[] = [
-  {
-    id: 1,
-    role: "assistant",
-    text: "Hello! I’m ready to help. Ask me anything.",
-  },
-  {
-    id: 2,
-    role: "user",
-    text: "Can you build a simple chat UI for me?",
-  },
-  {
-    id: 3,
-    role: "assistant",
-    text: "Absolutely — here’s a clean AI-style interface with a composer at the bottom.",
-  },
-];
+type Conversation = {
+  id: string;
+  title: string;
+  provider: string;
+  messages: Array<{
+    id: string;
+    role: string;
+    content: string;
+  }>;
+};
+
+const initialMessages: Message[] = [];
 
 export default function Home() {
   const router = useRouter();
@@ -40,6 +36,9 @@ export default function Home() {
   const [user, setUser] = useState<{ id: string; email: string; name: string } | null>(null);
   const [isCheckingAuth, setIsCheckingAuth] = useState(true);
   const [showLogoutModal, setShowLogoutModal] = useState(false);
+  const [conversations, setConversations] = useState<Conversation[]>([]);
+  const [currentConversationId, setCurrentConversationId] = useState<string | null>(null);
+  const [isLoadingConversations, setIsLoadingConversations] = useState(false);
   const inputRef = useRef<HTMLInputElement | null>(null);
   const bottomRef = useRef<HTMLDivElement | null>(null);
 
@@ -67,6 +66,39 @@ export default function Home() {
     checkAuth();
   }, [router]);
 
+  useEffect(() => {
+    const loadConversations = async () => {
+      if (!user) return;
+      
+      setIsLoadingConversations(true);
+      try {
+        const response = await fetch("/api/conversations");
+        if (response.ok) {
+          const data = await response.json();
+          setConversations(data.conversations || []);
+          
+          // Load the most recent conversation's messages
+          if (data.conversations && data.conversations.length > 0) {
+            const latestConversation = data.conversations[0];
+            setCurrentConversationId(latestConversation.id);
+            const messages = latestConversation.messages.map((msg: any) => ({
+              id: msg.id,
+              role: msg.role as "assistant" | "user",
+              text: msg.content,
+            }));
+            setMessages(messages);
+          }
+        }
+      } catch (error) {
+        console.error("Failed to load conversations", error);
+      } finally {
+        setIsLoadingConversations(false);
+      }
+    };
+
+    loadConversations();
+  }, [user]);
+
   const handleLogout = async () => {
     setShowLogoutModal(true);
   };
@@ -87,6 +119,13 @@ export default function Home() {
     setShowLogoutModal(false);
   };
 
+  const handleNewConversation = () => {
+    setCurrentConversationId(null);
+    setMessages(initialMessages);
+    setInput("");
+    inputRef.current?.focus();
+  };
+
   const handleSubmit = async () => {
     const trimmed = input.trim();
 
@@ -96,12 +135,12 @@ export default function Home() {
     }
 
     const userMessage: Message = {
-      id: Date.now(),
+      id: crypto.randomUUID(),
       role: "user",
       text: trimmed,
     };
 
-    const assistantId = Date.now() + 1;
+    const assistantId = crypto.randomUUID();
 
     setMessages((current) => [...current, userMessage, { id: assistantId, role: "assistant", text: "" }]);
     setInput("");
@@ -114,7 +153,11 @@ export default function Home() {
         headers: {
           "Content-Type": "application/json",
         },
-        body: JSON.stringify({ message: trimmed, provider }),
+        body: JSON.stringify({ 
+          message: trimmed, 
+          provider,
+          conversationId: currentConversationId,
+        }),
       });
 
       if (!response.ok || !response.body) {
@@ -141,8 +184,12 @@ export default function Home() {
           if (!rawPayload || rawPayload === "[DONE]") continue;
 
           try {
-            const payload = JSON.parse(rawPayload) as { text?: string };
+            const payload = JSON.parse(rawPayload) as { text?: string; conversationId?: string; done?: boolean };
             const textChunk = payload.text ?? "";
+
+            if (payload.conversationId && !currentConversationId) {
+              setCurrentConversationId(payload.conversationId);
+            }
 
             if (!textChunk) continue;
 
@@ -165,7 +212,7 @@ export default function Home() {
       }
     } catch (error) {
       const errorMessage: Message = {
-        id: Date.now() + 2,
+        id: crypto.randomUUID(),
         role: "assistant",
         text:
           error instanceof Error
@@ -189,45 +236,92 @@ export default function Home() {
   }
 
   return (
-    <main className="flex min-h-screen flex-col bg-[#0b0b0f] text-white">
-      <header className="border-b border-zinc-800 bg-zinc-950/80 px-4 py-3 backdrop-blur-sm">
-        <div className="mx-auto flex max-w-3xl items-center justify-between gap-3">
-          <div className="flex items-center gap-3">
-            <div className="flex h-8 w-8 items-center justify-center rounded-full bg-white text-sm font-semibold text-zinc-950">
-              AI
-            </div>
-            <div>
-              <p className="text-sm font-semibold text-white">Assistant</p>
-              <p className="text-xs text-zinc-400">Online</p>
-            </div>
-          </div>
-
-          <div className="flex items-center gap-3">
-            <select
-              value={provider}
-              onChange={(event) => setProvider(event.target.value as Provider)}
-              className="rounded-lg border border-zinc-700 bg-zinc-900 px-2 py-1.5 text-xs text-zinc-200 outline-none"
-              aria-label="Select AI provider"
-            >
-              <option value="openrouter">OpenRouter</option>
-              <option value="openai">OpenAI</option>
-              <option value="anthropic">Claude</option>
-            </select>
-
-            <div className="flex items-center gap-2">
-              <div className="flex h-8 w-8 items-center justify-center rounded-full bg-zinc-800 text-xs font-semibold text-zinc-200">
-                {user?.name?.charAt(0).toUpperCase() || "U"}
-              </div>
-              <button
-                onClick={handleLogout}
-                className="rounded-lg border border-zinc-700 bg-zinc-900 px-3 py-1.5 text-xs text-zinc-200 transition hover:bg-zinc-800"
-              >
-                Logout
-              </button>
-            </div>
-          </div>
+    <main className="flex min-h-screen bg-[#0b0b0f] text-white">
+      {/* Sidebar */}
+      <aside className="w-64 border-r border-zinc-800 bg-zinc-950/50 p-4">
+        <div className="mb-4">
+          <button
+            onClick={handleNewConversation}
+            className="w-full rounded-lg border border-zinc-700 bg-zinc-900 px-4 py-2 text-sm font-medium text-zinc-200 transition hover:bg-zinc-800"
+          >
+            + New Chat
+          </button>
         </div>
-      </header>
+
+        <div className="space-y-2">
+          <p className="px-2 text-xs font-medium text-zinc-500">History</p>
+          {isLoadingConversations ? (
+            <p className="px-2 text-xs text-zinc-400">Loading...</p>
+          ) : conversations.length === 0 ? (
+            <p className="px-2 text-xs text-zinc-400">No conversations yet</p>
+          ) : (
+            conversations.map((conv) => (
+              <button
+                key={conv.id}
+                onClick={() => {
+                  setCurrentConversationId(conv.id);
+                  const messages = conv.messages.map((msg) => ({
+                    id: msg.id,
+                    role: msg.role as "assistant" | "user",
+                    text: msg.content,
+                  }));
+                  setMessages( messages );
+                  setProvider(conv.provider as Provider);
+                }}
+                className={`w-full rounded-lg px-3 py-2 text-left text-sm transition ${
+                  currentConversationId === conv.id
+                    ? "bg-zinc-800 text-white"
+                    : "text-zinc-400 hover:bg-zinc-900 hover:text-zinc-200"
+                }`}
+              >
+                <div className="truncate font-medium">{conv.title}</div>
+                <div className="mt-1 text-xs text-zinc-500">{conv.provider}</div>
+              </button>
+            ))
+          )}
+        </div>
+      </aside>
+
+      {/* Main Content */}
+      <div className="flex flex-1 flex-col">
+        <header className="border-b border-zinc-800 bg-zinc-950/80 px-4 py-3 backdrop-blur-sm">
+          <div className="mx-auto flex max-w-3xl items-center justify-between gap-3">
+            <div className="flex items-center gap-3">
+              <div className="flex h-8 w-8 items-center justify-center rounded-full bg-white text-sm font-semibold text-zinc-950">
+                AI
+              </div>
+              <div>
+                <p className="text-sm font-semibold text-white">Assistant</p>
+                <p className="text-xs text-zinc-400">Online</p>
+              </div>
+            </div>
+
+            <div className="flex items-center gap-3">
+              <select
+                value={provider}
+                onChange={(event) => setProvider(event.target.value as Provider)}
+                className="rounded-lg border border-zinc-700 bg-zinc-900 px-2 py-1.5 text-xs text-zinc-200 outline-none"
+                aria-label="Select AI provider"
+              >
+                <option value="openrouter">OpenRouter</option>
+                <option value="openai">OpenAI</option>
+                <option value="anthropic">Claude</option>
+              </select>
+
+              <div className="flex items-center gap-2">
+                <div className="flex h-8 w-8 items-center justify-center rounded-full bg-zinc-800 text-xs font-semibold text-zinc-200">
+                  {user?.name?.charAt(0).toUpperCase() || "U"}
+                </div>
+                <button
+                  onClick={handleLogout}
+                  className="rounded-lg border border-zinc-700 bg-zinc-900 px-3 py-1.5 text-xs text-zinc-200 transition hover:bg-zinc-800"
+                >
+                  Logout
+                </button>
+              </div>
+            </div>
+          </div>
+        </header>
 
       <div className="flex-1 overflow-y-auto px-4 py-6">
         <div className="mx-auto flex max-w-3xl flex-col gap-4">
@@ -292,6 +386,7 @@ export default function Home() {
             {isLoading ? "Sending..." : "Send"}
           </button>
         </div>
+      </div>
       </div>
 
       <ConfirmModal

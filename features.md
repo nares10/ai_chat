@@ -10,10 +10,9 @@
 - **Traditional Prisma Setup**: Migrated from Prisma Next to traditional Prisma 6.x
 - **Seed Data**: Realistic seed data with users, sessions, conversations, messages, and API keys
 - **Password Hashing**: Argon2 integration for secure password storage
+- **Authentication UI**: Login and registration pages with form validation
 
 ## Next:
-- [ ] Add authentication (login/signup pages, session management)
-- [ ] Add conversation history (list and view past conversations)
 - [ ] Add message history (persist chat messages to database)
 - [ ] Add API key management (create, list, delete API keys)
 - [ ] Add user profile page
