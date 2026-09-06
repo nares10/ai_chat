@@ -1,7 +1,18 @@
 import { prisma } from "../lib/prisma";
 import { hashPassword } from "../lib/password";
 
-const TEST_BASE_URL = "http://localhost:3000";
+const TEST_BASE_URL = "http://localhost:3010";
+
+function assertTestDatabase() {
+  const databaseUrl = process.env.DATABASE_URL;
+  const databaseName = databaseUrl ? new URL(databaseUrl).pathname : "";
+
+  if (!databaseName.toLowerCase().includes("test")) {
+    throw new Error(
+      "Refusing to clean the database because DATABASE_URL does not point to a test database. Use a database name containing 'test'.",
+    );
+  }
+}
 
 export interface TestUser {
   id: string;
@@ -12,7 +23,10 @@ export interface TestUser {
 }
 
 export async function setupTestDatabase() {
+  assertTestDatabase();
+
   // Clean up test data
+  await prisma.pendingRegistration.deleteMany();
   await prisma.message.deleteMany();
   await prisma.conversation.deleteMany();
   await prisma.apiKey.deleteMany();
@@ -35,7 +49,7 @@ export async function createTestUser(email: string, password: string, name: stri
     id: user.id,
     email: user.email,
     password,
-    name: user.name,
+    name: user.name || "",
   };
 }
 
@@ -55,8 +69,6 @@ export async function loginUser(user: TestUser): Promise<string> {
     throw new Error(`Login failed: ${response.statusText}`);
   }
 
-  const data = await response.json();
-  
   // Extract session ID from Set-Cookie header
   const setCookieHeader = response.headers.get("set-cookie");
   const sessionIdMatch = setCookieHeader?.match(/session_id=([^;]+)/);
@@ -67,40 +79,6 @@ export async function loginUser(user: TestUser): Promise<string> {
   }
 
   return sessionId || "";
-}
-
-export async function registerUser(email: string, password: string, name: string): Promise<TestUser> {
-  const response = await fetch(`${TEST_BASE_URL}/api/auth/register`, {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-    },
-    body: JSON.stringify({
-      email,
-      password,
-      name,
-    }),
-  });
-
-  if (!response.ok) {
-    throw new Error(`Registration failed: ${response.statusText}`);
-  }
-
-  const data = await response.json();
-  const user = await prisma.user.findUnique({
-    where: { email: data.user.email },
-  });
-
-  if (!user) {
-    throw new Error("Failed to create user in database");
-  }
-
-  return {
-    id: user.id,
-    email: user.email,
-    password,
-    name: user.name || "",
-  };
 }
 
 export async function createApiKey(userId: string, key: string, name: string, provider: string) {
@@ -115,6 +93,9 @@ export async function createApiKey(userId: string, key: string, name: string, pr
 }
 
 export async function cleanupTestDatabase() {
+  assertTestDatabase();
+
+  await prisma.pendingRegistration.deleteMany();
   await prisma.message.deleteMany();
   await prisma.conversation.deleteMany();
   await prisma.apiKey.deleteMany();

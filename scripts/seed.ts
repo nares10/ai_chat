@@ -3,12 +3,21 @@ import { prisma } from '@/lib/prisma';
 import { hash } from 'argon2';
 
 async function seed() {
-	// Clean existing data
-	await prisma.message.deleteMany();
-	await prisma.conversation.deleteMany();
-	await prisma.apiKey.deleteMany();
-	await prisma.session.deleteMany();
-	await prisma.user.deleteMany();
+	const existingUserCount = await prisma.user.count();
+	const forceReset = process.env.SEED_FORCE_RESET === 'true';
+
+	if (existingUserCount > 0 && !forceReset) {
+		console.log('Database already contains users. Skipping seed to preserve existing data.');
+		return;
+	}
+
+	if (forceReset) {
+		await prisma.message.deleteMany();
+		await prisma.conversation.deleteMany();
+		await prisma.apiKey.deleteMany();
+		await prisma.session.deleteMany();
+		await prisma.user.deleteMany();
+	}
 
 	// Create users with hashed passwords
 	const user1Id = crypto.randomUUID();

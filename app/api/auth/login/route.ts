@@ -2,11 +2,12 @@ import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { verifyPassword } from "@/lib/password";
 import { createSession } from "@/lib/session";
-import { cookies } from "next/headers";
 
 export async function POST(request: Request) {
   try {
-    const body = await request.json();
+    const body = request.headers.get("content-type")?.includes("application/json")
+      ? await request.json()
+      : Object.fromEntries((await request.formData()).entries());
 
     const email = body.email?.trim().toLowerCase();
     const password = body.password;

@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getCurrentUser } from "@/lib/session";
 import { prisma } from "@/lib/prisma";
+import { FREE_MESSAGE_LIMIT } from "@/lib/freeMessages";
 
 function streamSSE(data: unknown) {
   return `data: ${JSON.stringify(data)}\n\n`;
@@ -124,7 +125,6 @@ export async function POST(request: NextRequest) {
 
     // Check free message limit if no API key provided
     if (!apiKey) {
-      const FREE_MESSAGE_LIMIT = 5;
       if (user.freeMessagesUsed >= FREE_MESSAGE_LIMIT) {
         return NextResponse.json(
           { 

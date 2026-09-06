@@ -42,3 +42,13 @@ export type Message = Prisma.MessageModel
  * 
  */
 export type ApiKey = Prisma.ApiKeyModel
+/**
+ * Model EmailVerificationToken
+ * 
+ */
+export type EmailVerificationToken = Prisma.EmailVerificationTokenModel
+/**
+ * Model PendingRegistration
+ * 
+ */
+export type PendingRegistration = Prisma.PendingRegistrationModel

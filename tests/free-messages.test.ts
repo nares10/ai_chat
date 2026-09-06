@@ -52,7 +52,7 @@ describe("Free Message Limit", () => {
     });
 
     it("should increment counter for each free message", async () => {
-      for (let i = 2; i <= 5; i++) {
+      for (let i = 2; i <= 20; i++) {
         const response = await fetch("http://localhost:3000/api/chat", {
           method: "POST",
           headers: getAuthHeaders(sessionId),
@@ -74,13 +74,13 @@ describe("Free Message Limit", () => {
   });
 
   describe("Free Message Limit Enforcement", () => {
-    it("should block messages after 5 free messages", async () => {
-      // User already has 5 messages from previous test
+    it("should block messages after 20 free messages", async () => {
+      // User already has 20 messages from previous test
       const response = await fetch("http://localhost:3000/api/chat", {
         method: "POST",
         headers: getAuthHeaders(sessionId),
         body: JSON.stringify({
-          message: "Test message 6 - should be blocked",
+          message: "Test message 21 - should be blocked",
           provider: "openrouter",
         }),
       });
@@ -89,7 +89,7 @@ describe("Free Message Limit", () => {
       const data = await response.json();
       expect(data.error).toBe("Free message limit reached");
       expect(data.requiresApiKey).toBe(true);
-      expect(data.message).toContain("5 free messages");
+      expect(data.message).toContain("20 free messages");
     });
 
     it("should not increment counter when limit reached", async () => {

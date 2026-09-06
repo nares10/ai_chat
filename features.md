@@ -14,11 +14,12 @@
 - **Conversation History**: List of conversations with provider information
 
 ## Next:
-- [ ] Add API key management (create, list, delete API keys)
-- [ ] Add model selection per conversation
-- [ ] Add message search functionality
-- [ ] Add export conversation feature
+- Add message search functionality
+- 
+- 12 Test failed , look into that 
+- Dockerise Application
+- Add export conversation feature
+- Email Verification in Signup process
 
 ## Fixes
-- [ ] Fix free message count not updating after sending a message
-- [ ] make sidebar and nav bar fixes at their place even when scrolling in main chat area
+- Fix free message count not updating after sending a message

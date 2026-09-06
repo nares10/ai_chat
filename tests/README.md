@@ -54,6 +54,7 @@ Conversation and Message History tests:
 ### Prerequisites
 - Ensure the development server is running: `bun run dev`
 - Database should be accessible
+- Use a separate database whose name contains `test` for `DATABASE_URL`; the test cleanup refuses to run against the application database
 - Environment variables should be configured
 
 ### Run all tests

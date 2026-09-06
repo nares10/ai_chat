@@ -13,10 +13,14 @@ model User {
   email        String    @unique
   passwordHash String
   name         String?
+  emailVerified    Boolean   @default(false)
   freeMessagesUsed Int   @default(0)
+  
   sessions     Session[]
   conversations Conversation[]
   apikeys      ApiKey[]
+  verificationTokens EmailVerificationToken[]
+
   createdAt    DateTime  @default(now())
   updatedAt    DateTime  @updatedAt
 }
@@ -63,5 +67,17 @@ model ApiKey {
   provider  String
   createdAt DateTime @default(now())
   user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  @@index([userId])
+}
+
+model EmailVerificationToken {
+  id        String   @id @default(uuid())
+  userId    String
+  tokenHash String   @unique
+  expiresAt DateTime
+  createdAt DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
   @@index([userId])
 }

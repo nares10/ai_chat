@@ -33,7 +33,7 @@ export default function LoginPage() {
 
       router.push("/");
       router.refresh();
-    } catch (error) {
+    } catch {
       setError("Something went wrong. Please try again.");
     } finally {
       setIsLoading(false);
@@ -61,7 +61,12 @@ export default function LoginPage() {
           </p>
         </div>
 
-        <form className="mt-8 space-y-6" onSubmit={handleSubmit}>
+        <form
+          className="mt-8 space-y-6"
+          method="post"
+          action="/api/auth/login"
+          onSubmit={handleSubmit}
+        >
           {error && (
             <div className="rounded-lg bg-red-900/50 p-4 text-sm text-red-200">
               {error}

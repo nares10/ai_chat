@@ -1,4 +1,5 @@
 import { useState, useEffect } from "react";
+import { FREE_MESSAGE_LIMIT } from "@/lib/freeMessages";
 
 interface User {
   id: string;
@@ -37,8 +38,8 @@ export function useFreeMessageCount(user: User | null) {
     }
   };
 
-  const remainingFreeMessages = Math.max(0, 5 - freeMessagesUsed);
-  const hasReachedLimit = freeMessagesUsed >= 5;
+  const remainingFreeMessages = Math.max(0, FREE_MESSAGE_LIMIT - freeMessagesUsed);
+  const hasReachedLimit = freeMessagesUsed >= FREE_MESSAGE_LIMIT;
 
   return {
     freeMessagesUsed,

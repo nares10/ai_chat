@@ -53,7 +53,9 @@ export const ModelName = {
   Session: 'Session',
   Conversation: 'Conversation',
   Message: 'Message',
-  ApiKey: 'ApiKey'
+  ApiKey: 'ApiKey',
+  EmailVerificationToken: 'EmailVerificationToken',
+  PendingRegistration: 'PendingRegistration'
 } as const
 
 export type ModelName = (typeof ModelName)[keyof typeof ModelName]
@@ -77,6 +79,7 @@ export const UserScalarFieldEnum = {
   email: 'email',
   passwordHash: 'passwordHash',
   name: 'name',
+  emailVerified: 'emailVerified',
   freeMessagesUsed: 'freeMessagesUsed',
   createdAt: 'createdAt',
   updatedAt: 'updatedAt'
@@ -131,6 +134,30 @@ export const ApiKeyScalarFieldEnum = {
 } as const
 
 export type ApiKeyScalarFieldEnum = (typeof ApiKeyScalarFieldEnum)[keyof typeof ApiKeyScalarFieldEnum]
+
+
+export const EmailVerificationTokenScalarFieldEnum = {
+  id: 'id',
+  userId: 'userId',
+  tokenHash: 'tokenHash',
+  expiresAt: 'expiresAt',
+  createdAt: 'createdAt'
+} as const
+
+export type EmailVerificationTokenScalarFieldEnum = (typeof EmailVerificationTokenScalarFieldEnum)[keyof typeof EmailVerificationTokenScalarFieldEnum]
+
+
+export const PendingRegistrationScalarFieldEnum = {
+  id: 'id',
+  email: 'email',
+  name: 'name',
+  passwordHash: 'passwordHash',
+  codeHash: 'codeHash',
+  expiresAt: 'expiresAt',
+  createdAt: 'createdAt'
+} as const
+
+export type PendingRegistrationScalarFieldEnum = (typeof PendingRegistrationScalarFieldEnum)[keyof typeof PendingRegistrationScalarFieldEnum]
 
 
 export const SortOrder = {
