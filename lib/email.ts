@@ -1,3 +1,4 @@
+import 'dotenv/config';
 import { Resend } from "resend";
 import { CODE_TTL_MS } from "@/lib/verification";
 

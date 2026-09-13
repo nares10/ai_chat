@@ -1,30 +1,21 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
-import { canRevealCode, sendVerificationCodeEmail } from "@/lib/email";
-import { isValidEmail, normalizeEmail, readRequestBody } from "@/lib/auth-input";
-import {
-  CODE_TTL_MS,
-  RESEND_COOLDOWN_MS,
-  generateVerificationCode,
-  hashCode,
-} from "@/lib/verification";
+import { hashPassword } from "@/lib/password";
 
-/**
- * Step 1 of registration: collect name and email, then mail a verification code.
- * The account itself is only created once the code is confirmed and a password
- * is chosen (see /api/auth/verify-email and /api/auth/complete-registration).
- * Calling this again for the same email resends a fresh code.
- */
 export async function POST(request: Request) {
 	try {
-		const body = await readRequestBody(request);
+		const body = request.headers.get("content-type")?.includes("application/json")
+			? await request.json()
+			: Object.fromEntries((await request.formData()).entries());
 
-		const email = normalizeEmail(body.email);
+		const email = body.email?.trim().toLowerCase();
+		const password = body.password;
+		const confirmPassword = body.confirmPassword;
 		const name = body.name?.trim();
 
-		if (!email || !name) {
+		if (!email || !password || !name) {
 			return NextResponse.json(
-				{ error: "Name and email are required" },
+				{ error: "Email, password, and name are required" },
 				{ status: 400 }
 			);
 		}
@@ -36,16 +27,22 @@ export async function POST(request: Request) {
 			);
 		}
 
-		if (!isValidEmail(email)) {
+		if (password.length < 8) {
 			return NextResponse.json(
-				{ error: "Enter a valid email address" },
+				{ error: "Password must be at least 8 characters" },
+				{ status: 400 }
+			);
+		}
+
+		if (confirmPassword !== undefined && password !== confirmPassword) {
+			return NextResponse.json(
+				{ error: "Passwords do not match" },
 				{ status: 400 }
 			);
 		}
 
 		const existingUser = await prisma.user.findUnique({
 			where: { email },
-			select: { id: true },
 		});
 
 		if (existingUser) {
@@ -55,61 +52,26 @@ export async function POST(request: Request) {
 			);
 		}
 
-		const pending = await prisma.pendingRegistration.findUnique({
-			where: { email },
-			select: { lastSentAt: true },
-		});
-
-		if (pending) {
-			const waitMs = pending.lastSentAt.getTime() + RESEND_COOLDOWN_MS - Date.now();
-
-			if (waitMs > 0) {
-				return NextResponse.json(
-					{
-						error: "A code was just sent. Please wait before requesting another one.",
-						retryAfterSeconds: Math.ceil(waitMs / 1000),
-					},
-					{ status: 429 }
-				);
-			}
-		}
-
-		const code = generateVerificationCode();
-		const now = new Date();
-
-		const data = {
-			name,
-			codeHash: hashCode(code),
-			expiresAt: new Date(now.getTime() + CODE_TTL_MS),
-			attempts: 0,
-			lastSentAt: now,
-			verifiedAt: null,
-			verificationTokenHash: null,
-		};
-
-		await prisma.pendingRegistration.upsert({
-			where: { email },
-			create: { email, ...data },
-			update: data,
-		});
-
-		await sendVerificationCodeEmail({ to: email, name, code });
-
-		return NextResponse.json(
-			{
+		const user = await prisma.user.create({
+			data: {
 				email,
-				expiresInSeconds: Math.floor(CODE_TTL_MS / 1000),
-				resendAfterSeconds: Math.floor(RESEND_COOLDOWN_MS / 1000),
-				// Only present when email is logged instead of delivered (local dev).
-				...(canRevealCode() ? { devCode: code } : {}),
+				name,
+				passwordHash: await hashPassword(password),
+				emailVerified: true,
 			},
-			{ status: 200 }
-		);
+			select: {
+				id: true,
+				email: true,
+				name: true,
+			},
+		});
+
+		return NextResponse.json({ user }, { status: 201 });
 	} catch (error) {
 		console.error(error);
 
 		return NextResponse.json(
-			{ error: "Could not send the verification code. Please try again." },
+			{ error: "Something went wrong" },
 			{ status: 500 }
 		);
 	}

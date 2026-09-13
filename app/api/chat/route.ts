@@ -164,16 +164,8 @@ export async function POST(request: NextRequest) {
       });
     }
 
-    // Save user message to database
-    const userMessage = await prisma.message.create({
-      data: {
-        conversationId: conversation.id,
-        role: "user",
-        content: message,
-      },
-    });
-
-    // Get conversation history for context
+    // Get conversation history for context (user message is saved once the
+    // assistant replies, so it isn't in the DB yet — append it below).
     const conversationHistory = await prisma.message.findMany({
       where: {
         conversationId: conversation.id,
@@ -185,10 +177,13 @@ export async function POST(request: NextRequest) {
     });
 
     // Format messages for AI providers
-    const messagesForAI = conversationHistory.map(msg => ({
-      role: msg.role as "user" | "assistant",
-      content: msg.content,
-    }));
+    const messagesForAI = [
+      ...conversationHistory.map(msg => ({
+        role: msg.role as "user" | "assistant",
+        content: msg.content,
+      })),
+      { role: "user" as const, content: message },
+    ];
 
     let upstream: Response;
 
@@ -245,8 +240,20 @@ export async function POST(request: NextRequest) {
             }
           }
 
-          // Save assistant message to database after streaming is complete
+          // Save the user message and the assistant's reply together, once the
+          // reply has actually arrived — an errored/empty reply leaves no
+          // orphaned user message in the conversation. Two separate creates
+          // (rather than createMany) so their createdAt timestamps stay
+          // distinct for ordering.
           if (fullResponse) {
+            await prisma.message.create({
+              data: {
+                conversationId: conversation.id,
+                role: "user",
+                content: message,
+              },
+            });
+
             await prisma.message.create({
               data: {
                 conversationId: conversation.id,
