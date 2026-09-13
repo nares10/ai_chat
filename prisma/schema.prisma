@@ -81,3 +81,20 @@ model EmailVerificationToken {
 
   @@index([userId])
 }
+
+model PendingRegistration {
+  id        String   @id @default(uuid())
+  email     String   @unique
+  name      String
+  codeHash  String
+  expiresAt DateTime
+
+  attempts   Int      @default(0)
+  lastSentAt DateTime @default(now())
+
+  verifiedAt            DateTime?
+  verificationTokenHash String?   @unique
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}

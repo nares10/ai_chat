@@ -20,70 +20,112 @@ export type PendingRegistrationModel = runtime.Types.Result.DefaultSelection<Pri
 
 export type AggregatePendingRegistration = {
   _count: PendingRegistrationCountAggregateOutputType | null
+  _avg: PendingRegistrationAvgAggregateOutputType | null
+  _sum: PendingRegistrationSumAggregateOutputType | null
   _min: PendingRegistrationMinAggregateOutputType | null
   _max: PendingRegistrationMaxAggregateOutputType | null
+}
+
+export type PendingRegistrationAvgAggregateOutputType = {
+  attempts: number | null
+}
+
+export type PendingRegistrationSumAggregateOutputType = {
+  attempts: number | null
 }
 
 export type PendingRegistrationMinAggregateOutputType = {
   id: string | null
   email: string | null
   name: string | null
-  passwordHash: string | null
   codeHash: string | null
   expiresAt: Date | null
+  attempts: number | null
+  lastSentAt: Date | null
+  verifiedAt: Date | null
+  verificationTokenHash: string | null
   createdAt: Date | null
+  updatedAt: Date | null
 }
 
 export type PendingRegistrationMaxAggregateOutputType = {
   id: string | null
   email: string | null
   name: string | null
-  passwordHash: string | null
   codeHash: string | null
   expiresAt: Date | null
+  attempts: number | null
+  lastSentAt: Date | null
+  verifiedAt: Date | null
+  verificationTokenHash: string | null
   createdAt: Date | null
+  updatedAt: Date | null
 }
 
 export type PendingRegistrationCountAggregateOutputType = {
   id: number
   email: number
   name: number
-  passwordHash: number
   codeHash: number
   expiresAt: number
+  attempts: number
+  lastSentAt: number
+  verifiedAt: number
+  verificationTokenHash: number
   createdAt: number
+  updatedAt: number
   _all: number
 }
 
+
+export type PendingRegistrationAvgAggregateInputType = {
+  attempts?: true
+}
+
+export type PendingRegistrationSumAggregateInputType = {
+  attempts?: true
+}
 
 export type PendingRegistrationMinAggregateInputType = {
   id?: true
   email?: true
   name?: true
-  passwordHash?: true
   codeHash?: true
   expiresAt?: true
+  attempts?: true
+  lastSentAt?: true
+  verifiedAt?: true
+  verificationTokenHash?: true
   createdAt?: true
+  updatedAt?: true
 }
 
 export type PendingRegistrationMaxAggregateInputType = {
   id?: true
   email?: true
   name?: true
-  passwordHash?: true
   codeHash?: true
   expiresAt?: true
+  attempts?: true
+  lastSentAt?: true
+  verifiedAt?: true
+  verificationTokenHash?: true
   createdAt?: true
+  updatedAt?: true
 }
 
 export type PendingRegistrationCountAggregateInputType = {
   id?: true
   email?: true
   name?: true
-  passwordHash?: true
   codeHash?: true
   expiresAt?: true
+  attempts?: true
+  lastSentAt?: true
+  verifiedAt?: true
+  verificationTokenHash?: true
   createdAt?: true
+  updatedAt?: true
   _all?: true
 }
 
@@ -125,6 +167,18 @@ export type PendingRegistrationAggregateArgs<ExtArgs extends runtime.Types.Exten
   /**
    * {@link https://www.prisma.io/docs/concepts/components/prisma-client/aggregations Aggregation Docs}
    * 
+   * Select which fields to average
+  **/
+  _avg?: PendingRegistrationAvgAggregateInputType
+  /**
+   * {@link https://www.prisma.io/docs/concepts/components/prisma-client/aggregations Aggregation Docs}
+   * 
+   * Select which fields to sum
+  **/
+  _sum?: PendingRegistrationSumAggregateInputType
+  /**
+   * {@link https://www.prisma.io/docs/concepts/components/prisma-client/aggregations Aggregation Docs}
+   * 
    * Select which fields to find the minimum value
   **/
   _min?: PendingRegistrationMinAggregateInputType
@@ -155,6 +209,8 @@ export type PendingRegistrationGroupByArgs<ExtArgs extends runtime.Types.Extensi
   take?: number
   skip?: number
   _count?: PendingRegistrationCountAggregateInputType | true
+  _avg?: PendingRegistrationAvgAggregateInputType
+  _sum?: PendingRegistrationSumAggregateInputType
   _min?: PendingRegistrationMinAggregateInputType
   _max?: PendingRegistrationMaxAggregateInputType
 }
@@ -163,11 +219,17 @@ export type PendingRegistrationGroupByOutputType = {
   id: string
   email: string
   name: string
-  passwordHash: string
   codeHash: string
   expiresAt: Date
+  attempts: number
+  lastSentAt: Date
+  verifiedAt: Date | null
+  verificationTokenHash: string | null
   createdAt: Date
+  updatedAt: Date
   _count: PendingRegistrationCountAggregateOutputType | null
+  _avg: PendingRegistrationAvgAggregateOutputType | null
+  _sum: PendingRegistrationSumAggregateOutputType | null
   _min: PendingRegistrationMinAggregateOutputType | null
   _max: PendingRegistrationMaxAggregateOutputType | null
 }
@@ -194,46 +256,64 @@ export type PendingRegistrationWhereInput = {
   id?: Prisma.StringFilter<"PendingRegistration"> | string
   email?: Prisma.StringFilter<"PendingRegistration"> | string
   name?: Prisma.StringFilter<"PendingRegistration"> | string
-  passwordHash?: Prisma.StringFilter<"PendingRegistration"> | string
   codeHash?: Prisma.StringFilter<"PendingRegistration"> | string
   expiresAt?: Prisma.DateTimeFilter<"PendingRegistration"> | Date | string
+  attempts?: Prisma.IntFilter<"PendingRegistration"> | number
+  lastSentAt?: Prisma.DateTimeFilter<"PendingRegistration"> | Date | string
+  verifiedAt?: Prisma.DateTimeNullableFilter<"PendingRegistration"> | Date | string | null
+  verificationTokenHash?: Prisma.StringNullableFilter<"PendingRegistration"> | string | null
   createdAt?: Prisma.DateTimeFilter<"PendingRegistration"> | Date | string
+  updatedAt?: Prisma.DateTimeFilter<"PendingRegistration"> | Date | string
 }
 
 export type PendingRegistrationOrderByWithRelationInput = {
   id?: Prisma.SortOrder
   email?: Prisma.SortOrder
   name?: Prisma.SortOrder
-  passwordHash?: Prisma.SortOrder
   codeHash?: Prisma.SortOrder
   expiresAt?: Prisma.SortOrder
+  attempts?: Prisma.SortOrder
+  lastSentAt?: Prisma.SortOrder
+  verifiedAt?: Prisma.SortOrderInput | Prisma.SortOrder
+  verificationTokenHash?: Prisma.SortOrderInput | Prisma.SortOrder
   createdAt?: Prisma.SortOrder
+  updatedAt?: Prisma.SortOrder
 }
 
 export type PendingRegistrationWhereUniqueInput = Prisma.AtLeast<{
   id?: string
   email?: string
+  verificationTokenHash?: string
   AND?: Prisma.PendingRegistrationWhereInput | Prisma.PendingRegistrationWhereInput[]
   OR?: Prisma.PendingRegistrationWhereInput[]
   NOT?: Prisma.PendingRegistrationWhereInput | Prisma.PendingRegistrationWhereInput[]
   name?: Prisma.StringFilter<"PendingRegistration"> | string
-  passwordHash?: Prisma.StringFilter<"PendingRegistration"> | string
   codeHash?: Prisma.StringFilter<"PendingRegistration"> | string
   expiresAt?: Prisma.DateTimeFilter<"PendingRegistration"> | Date | string
+  attempts?: Prisma.IntFilter<"PendingRegistration"> | number
+  lastSentAt?: Prisma.DateTimeFilter<"PendingRegistration"> | Date | string
+  verifiedAt?: Prisma.DateTimeNullableFilter<"PendingRegistration"> | Date | string | null
   createdAt?: Prisma.DateTimeFilter<"PendingRegistration"> | Date | string
-}, "id" | "email">
+  updatedAt?: Prisma.DateTimeFilter<"PendingRegistration"> | Date | string
+}, "id" | "email" | "verificationTokenHash">
 
 export type PendingRegistrationOrderByWithAggregationInput = {
   id?: Prisma.SortOrder
   email?: Prisma.SortOrder
   name?: Prisma.SortOrder
-  passwordHash?: Prisma.SortOrder
   codeHash?: Prisma.SortOrder
   expiresAt?: Prisma.SortOrder
+  attempts?: Prisma.SortOrder
+  lastSentAt?: Prisma.SortOrder
+  verifiedAt?: Prisma.SortOrderInput | Prisma.SortOrder
+  verificationTokenHash?: Prisma.SortOrderInput | Prisma.SortOrder
   createdAt?: Prisma.SortOrder
+  updatedAt?: Prisma.SortOrder
   _count?: Prisma.PendingRegistrationCountOrderByAggregateInput
+  _avg?: Prisma.PendingRegistrationAvgOrderByAggregateInput
   _max?: Prisma.PendingRegistrationMaxOrderByAggregateInput
   _min?: Prisma.PendingRegistrationMinOrderByAggregateInput
+  _sum?: Prisma.PendingRegistrationSumOrderByAggregateInput
 }
 
 export type PendingRegistrationScalarWhereWithAggregatesInput = {
@@ -243,110 +323,166 @@ export type PendingRegistrationScalarWhereWithAggregatesInput = {
   id?: Prisma.StringWithAggregatesFilter<"PendingRegistration"> | string
   email?: Prisma.StringWithAggregatesFilter<"PendingRegistration"> | string
   name?: Prisma.StringWithAggregatesFilter<"PendingRegistration"> | string
-  passwordHash?: Prisma.StringWithAggregatesFilter<"PendingRegistration"> | string
   codeHash?: Prisma.StringWithAggregatesFilter<"PendingRegistration"> | string
   expiresAt?: Prisma.DateTimeWithAggregatesFilter<"PendingRegistration"> | Date | string
+  attempts?: Prisma.IntWithAggregatesFilter<"PendingRegistration"> | number
+  lastSentAt?: Prisma.DateTimeWithAggregatesFilter<"PendingRegistration"> | Date | string
+  verifiedAt?: Prisma.DateTimeNullableWithAggregatesFilter<"PendingRegistration"> | Date | string | null
+  verificationTokenHash?: Prisma.StringNullableWithAggregatesFilter<"PendingRegistration"> | string | null
   createdAt?: Prisma.DateTimeWithAggregatesFilter<"PendingRegistration"> | Date | string
+  updatedAt?: Prisma.DateTimeWithAggregatesFilter<"PendingRegistration"> | Date | string
 }
 
 export type PendingRegistrationCreateInput = {
   id?: string
   email: string
   name: string
-  passwordHash: string
   codeHash: string
   expiresAt: Date | string
+  attempts?: number
+  lastSentAt?: Date | string
+  verifiedAt?: Date | string | null
+  verificationTokenHash?: string | null
   createdAt?: Date | string
+  updatedAt?: Date | string
 }
 
 export type PendingRegistrationUncheckedCreateInput = {
   id?: string
   email: string
   name: string
-  passwordHash: string
   codeHash: string
   expiresAt: Date | string
+  attempts?: number
+  lastSentAt?: Date | string
+  verifiedAt?: Date | string | null
+  verificationTokenHash?: string | null
   createdAt?: Date | string
+  updatedAt?: Date | string
 }
 
 export type PendingRegistrationUpdateInput = {
   id?: Prisma.StringFieldUpdateOperationsInput | string
   email?: Prisma.StringFieldUpdateOperationsInput | string
   name?: Prisma.StringFieldUpdateOperationsInput | string
-  passwordHash?: Prisma.StringFieldUpdateOperationsInput | string
   codeHash?: Prisma.StringFieldUpdateOperationsInput | string
   expiresAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
+  attempts?: Prisma.IntFieldUpdateOperationsInput | number
+  lastSentAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
+  verifiedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  verificationTokenHash?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
+  updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
 }
 
 export type PendingRegistrationUncheckedUpdateInput = {
   id?: Prisma.StringFieldUpdateOperationsInput | string
   email?: Prisma.StringFieldUpdateOperationsInput | string
   name?: Prisma.StringFieldUpdateOperationsInput | string
-  passwordHash?: Prisma.StringFieldUpdateOperationsInput | string
   codeHash?: Prisma.StringFieldUpdateOperationsInput | string
   expiresAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
+  attempts?: Prisma.IntFieldUpdateOperationsInput | number
+  lastSentAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
+  verifiedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  verificationTokenHash?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
+  updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
 }
 
 export type PendingRegistrationCreateManyInput = {
   id?: string
   email: string
   name: string
-  passwordHash: string
   codeHash: string
   expiresAt: Date | string
+  attempts?: number
+  lastSentAt?: Date | string
+  verifiedAt?: Date | string | null
+  verificationTokenHash?: string | null
   createdAt?: Date | string
+  updatedAt?: Date | string
 }
 
 export type PendingRegistrationUpdateManyMutationInput = {
   id?: Prisma.StringFieldUpdateOperationsInput | string
   email?: Prisma.StringFieldUpdateOperationsInput | string
   name?: Prisma.StringFieldUpdateOperationsInput | string
-  passwordHash?: Prisma.StringFieldUpdateOperationsInput | string
   codeHash?: Prisma.StringFieldUpdateOperationsInput | string
   expiresAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
+  attempts?: Prisma.IntFieldUpdateOperationsInput | number
+  lastSentAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
+  verifiedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  verificationTokenHash?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
+  updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
 }
 
 export type PendingRegistrationUncheckedUpdateManyInput = {
   id?: Prisma.StringFieldUpdateOperationsInput | string
   email?: Prisma.StringFieldUpdateOperationsInput | string
   name?: Prisma.StringFieldUpdateOperationsInput | string
-  passwordHash?: Prisma.StringFieldUpdateOperationsInput | string
   codeHash?: Prisma.StringFieldUpdateOperationsInput | string
   expiresAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
+  attempts?: Prisma.IntFieldUpdateOperationsInput | number
+  lastSentAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
+  verifiedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  verificationTokenHash?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
+  updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
 }
 
 export type PendingRegistrationCountOrderByAggregateInput = {
   id?: Prisma.SortOrder
   email?: Prisma.SortOrder
   name?: Prisma.SortOrder
-  passwordHash?: Prisma.SortOrder
   codeHash?: Prisma.SortOrder
   expiresAt?: Prisma.SortOrder
+  attempts?: Prisma.SortOrder
+  lastSentAt?: Prisma.SortOrder
+  verifiedAt?: Prisma.SortOrder
+  verificationTokenHash?: Prisma.SortOrder
   createdAt?: Prisma.SortOrder
+  updatedAt?: Prisma.SortOrder
+}
+
+export type PendingRegistrationAvgOrderByAggregateInput = {
+  attempts?: Prisma.SortOrder
 }
 
 export type PendingRegistrationMaxOrderByAggregateInput = {
   id?: Prisma.SortOrder
   email?: Prisma.SortOrder
   name?: Prisma.SortOrder
-  passwordHash?: Prisma.SortOrder
   codeHash?: Prisma.SortOrder
   expiresAt?: Prisma.SortOrder
+  attempts?: Prisma.SortOrder
+  lastSentAt?: Prisma.SortOrder
+  verifiedAt?: Prisma.SortOrder
+  verificationTokenHash?: Prisma.SortOrder
   createdAt?: Prisma.SortOrder
+  updatedAt?: Prisma.SortOrder
 }
 
 export type PendingRegistrationMinOrderByAggregateInput = {
   id?: Prisma.SortOrder
   email?: Prisma.SortOrder
   name?: Prisma.SortOrder
-  passwordHash?: Prisma.SortOrder
   codeHash?: Prisma.SortOrder
   expiresAt?: Prisma.SortOrder
+  attempts?: Prisma.SortOrder
+  lastSentAt?: Prisma.SortOrder
+  verifiedAt?: Prisma.SortOrder
+  verificationTokenHash?: Prisma.SortOrder
   createdAt?: Prisma.SortOrder
+  updatedAt?: Prisma.SortOrder
+}
+
+export type PendingRegistrationSumOrderByAggregateInput = {
+  attempts?: Prisma.SortOrder
+}
+
+export type NullableDateTimeFieldUpdateOperationsInput = {
+  set?: Date | string | null
 }
 
 
@@ -355,43 +491,59 @@ export type PendingRegistrationSelect<ExtArgs extends runtime.Types.Extensions.I
   id?: boolean
   email?: boolean
   name?: boolean
-  passwordHash?: boolean
   codeHash?: boolean
   expiresAt?: boolean
+  attempts?: boolean
+  lastSentAt?: boolean
+  verifiedAt?: boolean
+  verificationTokenHash?: boolean
   createdAt?: boolean
+  updatedAt?: boolean
 }, ExtArgs["result"]["pendingRegistration"]>
 
 export type PendingRegistrationSelectCreateManyAndReturn<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = runtime.Types.Extensions.GetSelect<{
   id?: boolean
   email?: boolean
   name?: boolean
-  passwordHash?: boolean
   codeHash?: boolean
   expiresAt?: boolean
+  attempts?: boolean
+  lastSentAt?: boolean
+  verifiedAt?: boolean
+  verificationTokenHash?: boolean
   createdAt?: boolean
+  updatedAt?: boolean
 }, ExtArgs["result"]["pendingRegistration"]>
 
 export type PendingRegistrationSelectUpdateManyAndReturn<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = runtime.Types.Extensions.GetSelect<{
   id?: boolean
   email?: boolean
   name?: boolean
-  passwordHash?: boolean
   codeHash?: boolean
   expiresAt?: boolean
+  attempts?: boolean
+  lastSentAt?: boolean
+  verifiedAt?: boolean
+  verificationTokenHash?: boolean
   createdAt?: boolean
+  updatedAt?: boolean
 }, ExtArgs["result"]["pendingRegistration"]>
 
 export type PendingRegistrationSelectScalar = {
   id?: boolean
   email?: boolean
   name?: boolean
-  passwordHash?: boolean
   codeHash?: boolean
   expiresAt?: boolean
+  attempts?: boolean
+  lastSentAt?: boolean
+  verifiedAt?: boolean
+  verificationTokenHash?: boolean
   createdAt?: boolean
+  updatedAt?: boolean
 }
 
-export type PendingRegistrationOmit<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = runtime.Types.Extensions.GetOmit<"id" | "email" | "name" | "passwordHash" | "codeHash" | "expiresAt" | "createdAt", ExtArgs["result"]["pendingRegistration"]>
+export type PendingRegistrationOmit<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = runtime.Types.Extensions.GetOmit<"id" | "email" | "name" | "codeHash" | "expiresAt" | "attempts" | "lastSentAt" | "verifiedAt" | "verificationTokenHash" | "createdAt" | "updatedAt", ExtArgs["result"]["pendingRegistration"]>
 
 export type $PendingRegistrationPayload<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
   name: "PendingRegistration"
@@ -400,10 +552,14 @@ export type $PendingRegistrationPayload<ExtArgs extends runtime.Types.Extensions
     id: string
     email: string
     name: string
-    passwordHash: string
     codeHash: string
     expiresAt: Date
+    attempts: number
+    lastSentAt: Date
+    verifiedAt: Date | null
+    verificationTokenHash: string | null
     createdAt: Date
+    updatedAt: Date
   }, ExtArgs["result"]["pendingRegistration"]>
   composites: {}
 }
@@ -830,10 +986,14 @@ export interface PendingRegistrationFieldRefs {
   readonly id: Prisma.FieldRef<"PendingRegistration", 'String'>
   readonly email: Prisma.FieldRef<"PendingRegistration", 'String'>
   readonly name: Prisma.FieldRef<"PendingRegistration", 'String'>
-  readonly passwordHash: Prisma.FieldRef<"PendingRegistration", 'String'>
   readonly codeHash: Prisma.FieldRef<"PendingRegistration", 'String'>
   readonly expiresAt: Prisma.FieldRef<"PendingRegistration", 'DateTime'>
+  readonly attempts: Prisma.FieldRef<"PendingRegistration", 'Int'>
+  readonly lastSentAt: Prisma.FieldRef<"PendingRegistration", 'DateTime'>
+  readonly verifiedAt: Prisma.FieldRef<"PendingRegistration", 'DateTime'>
+  readonly verificationTokenHash: Prisma.FieldRef<"PendingRegistration", 'String'>
   readonly createdAt: Prisma.FieldRef<"PendingRegistration", 'DateTime'>
+  readonly updatedAt: Prisma.FieldRef<"PendingRegistration", 'DateTime'>
 }
     
 

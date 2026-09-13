@@ -151,10 +151,14 @@ export const PendingRegistrationScalarFieldEnum = {
   id: 'id',
   email: 'email',
   name: 'name',
-  passwordHash: 'passwordHash',
   codeHash: 'codeHash',
   expiresAt: 'expiresAt',
-  createdAt: 'createdAt'
+  attempts: 'attempts',
+  lastSentAt: 'lastSentAt',
+  verifiedAt: 'verifiedAt',
+  verificationTokenHash: 'verificationTokenHash',
+  createdAt: 'createdAt',
+  updatedAt: 'updatedAt'
 } as const
 
 export type PendingRegistrationScalarFieldEnum = (typeof PendingRegistrationScalarFieldEnum)[keyof typeof PendingRegistrationScalarFieldEnum]

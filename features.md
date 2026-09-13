@@ -12,6 +12,7 @@
 - **Password Hashing**: Argon2 integration for secure password storage
 - **Authentication UI**: Login and registration pages with form validation
 - **Conversation History**: List of conversations with provider information
+- **Email Verification in Signup**: Registration collects name and email, mails a 6-digit code, and only creates the account once the code is confirmed and a password is set
 
 ## Next:
 - Add message search functionality
@@ -19,7 +20,6 @@
 - 12 Test failed , look into that 
 - Dockerise Application
 - Add export conversation feature
-- Email Verification in Signup process
 
 ## Fixes
 - Fix free message count not updating after sending a message

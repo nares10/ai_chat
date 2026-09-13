@@ -13,7 +13,7 @@ Test utilities and helper functions:
 
 ### `auth.test.ts`
 Authentication API tests:
-- User registration
+- Registration: name/email, email code verification, password and account creation
 - User login/logout
 - Authentication state checking
 - Error handling for invalid credentials
@@ -52,7 +52,8 @@ Conversation and Message History tests:
 ## Running Tests
 
 ### Prerequisites
-- Ensure the development server is running: `bun run dev`
+- Ensure the development server is running on port 3010: `bun run dev -- -p 3010` (or point the tests elsewhere with `TEST_BASE_URL`)
+- Start that server with `AUTH_EMAIL_TRANSPORT=console` so verification codes are logged instead of emailed
 - Database should be accessible
 - Use a separate database whose name contains `test` for `DATABASE_URL`; the test cleanup refuses to run against the application database
 - Environment variables should be configured
@@ -82,7 +83,7 @@ Each test file follows this pattern:
 
 ## Notes
 
-- Tests use real HTTP requests to `http://localhost:3000`
+- Tests use real HTTP requests to `http://localhost:3010` (override with `TEST_BASE_URL`)
 - Database is cleaned up before and after each test file
 - Each test file creates isolated test users
 - Tests may fail if actual API keys are not configured (external API calls)
