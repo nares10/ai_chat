@@ -1,7 +1,7 @@
-import { prisma } from "../lib/prisma";
 import { hashPassword } from "../lib/password";
+import { prisma } from "../lib/prisma";
 
-const TEST_BASE_URL = "http://localhost:3010";
+export const TEST_BASE_URL = process.env.TEST_BASE_URL || "http://localhost:3010";
 
 function assertTestDatabase() {
   const databaseUrl = process.env.DATABASE_URL;
@@ -9,103 +9,105 @@ function assertTestDatabase() {
 
   if (!databaseName.toLowerCase().includes("test")) {
     throw new Error(
-      "Refusing to clean the database because DATABASE_URL does not point to a test database. Use a database name containing 'test'.",
+      "Refusing to clean the database. DATABASE_URL must point to a database containing 'test'.",
     );
   }
 }
 
-export interface TestUser {
-  id: string;
-  email: string;
-  password: string;
-  name: string;
-  sessionId?: string;
-}
-
-export async function setupTestDatabase() {
+export async function resetTestDatabase() {
   assertTestDatabase();
-
-  // Clean up test data
-  await prisma.pendingRegistration.deleteMany();
   await prisma.message.deleteMany();
   await prisma.conversation.deleteMany();
   await prisma.apiKey.deleteMany();
   await prisma.session.deleteMany();
+  await prisma.emailVerificationToken.deleteMany();
   await prisma.user.deleteMany();
 }
 
-export async function createTestUser(email: string, password: string, name: string): Promise<TestUser> {
-  const passwordHash = await hashPassword(password);
-  const user = await prisma.user.create({
+export async function createTestUser(email: string, name = "Test User") {
+  return prisma.user.create({
     data: {
       email,
-      passwordHash,
       name,
-      freeMessagesUsed: 0,
+      passwordHash: await hashPassword("password123"),
+      emailVerified: true,
     },
   });
-
-  return {
-    id: user.id,
-    email: user.email,
-    password,
-    name: user.name || "",
-  };
 }
 
-export async function loginUser(user: TestUser): Promise<string> {
-  const response = await fetch(`${TEST_BASE_URL}/api/auth/login`, {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-    },
-    body: JSON.stringify({
-      email: user.email,
-      password: user.password,
-    }),
-  });
-
-  if (!response.ok) {
-    throw new Error(`Login failed: ${response.statusText}`);
-  }
-
-  // Extract session ID from Set-Cookie header
-  const setCookieHeader = response.headers.get("set-cookie");
-  const sessionIdMatch = setCookieHeader?.match(/session_id=([^;]+)/);
-  const sessionId = sessionIdMatch?.[1];
-
-  if (sessionId) {
-    user.sessionId = sessionId;
-  }
-
-  return sessionId || "";
-}
-
-export async function createApiKey(userId: string, key: string, name: string, provider: string) {
-  return await prisma.apiKey.create({
+export async function createSession(userId: string, expiresAt?: Date) {
+  const session = await prisma.session.create({
     data: {
       userId,
-      key,
-      name,
-      provider,
+      expiresAt: expiresAt ?? new Date(Date.now() + 60 * 60 * 1000),
+    },
+  });
+
+  return session.id;
+}
+
+export async function createExpiredSession(userId: string) {
+  return createSession(userId, new Date(Date.now() - 60 * 60 * 1000));
+}
+
+export function authHeaders(sessionId: string): HeadersInit {
+  return {
+    "Content-Type": "application/json",
+    Cookie: `session_id=${sessionId}`,
+  };
+}
+
+export async function createAuthedUser(email: string, name = "Test User") {
+  const user = await createTestUser(email, name);
+  const sessionId = await createSession(user.id);
+
+  return { user, sessionId, headers: authHeaders(sessionId) };
+}
+
+export async function createTestConversation(
+  userId: string,
+  overrides: { title?: string; provider?: string; model?: string } = {},
+) {
+  return prisma.conversation.create({
+    data: {
+      userId,
+      title: overrides.title ?? "Test conversation",
+      provider: overrides.provider ?? "openai",
+      model: overrides.model,
     },
   });
 }
 
-export async function cleanupTestDatabase() {
-  assertTestDatabase();
-
-  await prisma.pendingRegistration.deleteMany();
-  await prisma.message.deleteMany();
-  await prisma.conversation.deleteMany();
-  await prisma.apiKey.deleteMany();
-  await prisma.session.deleteMany();
-  await prisma.user.deleteMany();
+export async function createTestMessage(
+  conversationId: string,
+  overrides: { role?: string; content?: string } = {},
+) {
+  return prisma.message.create({
+    data: {
+      conversationId,
+      role: overrides.role ?? "user",
+      content: overrides.content ?? "Test message",
+    },
+  });
 }
 
-export function getAuthHeaders(sessionId: string): HeadersInit {
-  return {
-    "Content-Type": "application/json",
-    "Cookie": `session_id=${sessionId}`,
-  };
+export async function createTestApiKey(
+  userId: string,
+  overrides: { key?: string; name?: string; provider?: string } = {},
+) {
+  return prisma.apiKey.create({
+    data: {
+      userId,
+      key: overrides.key ?? `test-key-${crypto.randomUUID()}`,
+      name: overrides.name ?? "Test key",
+      provider: overrides.provider ?? "openai",
+    },
+  });
+}
+
+export async function setFreeMessagesUsed(userId: string, count: number) {
+  return prisma.user.update({
+    where: { id: userId },
+    data: { freeMessagesUsed: count },
+  });
 }

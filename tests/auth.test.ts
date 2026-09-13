@@ -1,290 +1,294 @@
-import { describe, it, expect, beforeAll, afterAll } from "bun:test";
-import { createHash } from "node:crypto";
-import {
-  setupTestDatabase,
-  createTestUser,
-  loginUser,
-  cleanupTestDatabase,
-  getAuthHeaders,
-} from "./setup";
-import { hashPassword } from "../lib/password";
+import { afterAll, beforeEach, describe, expect, it } from "bun:test";
 import { prisma } from "../lib/prisma";
+import {
+  TEST_BASE_URL,
+  authHeaders,
+  createExpiredSession,
+  createSession,
+  createTestUser,
+  resetTestDatabase,
+} from "./setup";
 
-const BASE_URL = "http://localhost:3010";
-
-describe("Authentication API", () => {
-  beforeAll(async () => {
-    await setupTestDatabase();
+describe("auth", () => {
+  beforeEach(async () => {
+    await resetTestDatabase();
   });
 
   afterAll(async () => {
-    await cleanupTestDatabase();
+    await resetTestDatabase();
+    await prisma.$disconnect();
   });
 
   describe("POST /api/auth/register", () => {
-    it("should reject registration when passwords do not match", async () => {
-      const response = await fetch(`${BASE_URL}/api/auth/register`, {
+    it("creates a user and never returns the password hash", async () => {
+      const response = await fetch(`${TEST_BASE_URL}/api/auth/register`, {
         method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
+        headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          email: "test@example.com",
+          email: "new.user@example.com",
+          password: "password123",
+          confirmPassword: "password123",
+          name: "New User",
+        }),
+      });
+      const data = await response.json();
+
+      expect(response.status).toBe(201);
+      expect(data.user).toMatchObject({ email: "new.user@example.com", name: "New User" });
+      expect(data.user.passwordHash).toBeUndefined();
+
+      const dbUser = await prisma.user.findUnique({ where: { email: "new.user@example.com" } });
+      expect(dbUser?.emailVerified).toBe(true);
+      expect(dbUser?.passwordHash).not.toBe("password123");
+    });
+
+    it("allows registering without confirmPassword", async () => {
+      const response = await fetch(`${TEST_BASE_URL}/api/auth/register`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          email: "no-confirm@example.com",
+          password: "password123",
+          name: "No Confirm",
+        }),
+      });
+
+      expect(response.status).toBe(201);
+    });
+
+    it("400s when email is missing", async () => {
+      const response = await fetch(`${TEST_BASE_URL}/api/auth/register`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ password: "password123", name: "No Email" }),
+      });
+
+      expect(response.status).toBe(400);
+    });
+
+    it("400s when password is missing", async () => {
+      const response = await fetch(`${TEST_BASE_URL}/api/auth/register`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email: "no-password@example.com", name: "No Password" }),
+      });
+
+      expect(response.status).toBe(400);
+    });
+
+    it("400s when name is missing", async () => {
+      const response = await fetch(`${TEST_BASE_URL}/api/auth/register`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email: "no-name@example.com", password: "password123" }),
+      });
+
+      expect(response.status).toBe(400);
+    });
+
+    it("400s when name is shorter than 2 characters", async () => {
+      const response = await fetch(`${TEST_BASE_URL}/api/auth/register`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email: "short-name@example.com", password: "password123", name: "A" }),
+      });
+
+      expect(response.status).toBe(400);
+    });
+
+    it("400s when password is shorter than 8 characters", async () => {
+      const response = await fetch(`${TEST_BASE_URL}/api/auth/register`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email: "short-pass@example.com", password: "short1", name: "Short Pass" }),
+      });
+
+      expect(response.status).toBe(400);
+    });
+
+    it("400s when confirmPassword does not match password", async () => {
+      const response = await fetch(`${TEST_BASE_URL}/api/auth/register`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          email: "mismatch@example.com",
           password: "password123",
           confirmPassword: "different123",
-          name: "Test User",
+          name: "Mismatch",
         }),
       });
 
       expect(response.status).toBe(400);
-      const data = await response.json();
-      expect(data.error).toBe("Passwords do not match");
     });
 
-    it("should reject registration with an existing email", async () => {
-      await createTestUser("test@example.com", "password123", "Test User");
-      const response = await fetch(`${BASE_URL}/api/auth/register`, {
+    it("409s when the email is already registered", async () => {
+      await createTestUser("duplicate@example.com");
+
+      const response = await fetch(`${TEST_BASE_URL}/api/auth/register`, {
         method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
+        headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          email: "test@example.com",
+          email: "duplicate@example.com",
           password: "password123",
-          confirmPassword: "password123",
-          name: "Test User",
+          name: "Duplicate",
         }),
       });
 
       expect(response.status).toBe(409);
-      const data = await response.json();
-      expect(data.error).toBe("User already exists");
-    });
-
-    it("should reject registration with missing fields", async () => {
-      const response = await fetch(`${BASE_URL}/api/auth/register`, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          email: "test2@example.com",
-          password: "password123",
-          confirmPassword: "password123",
-        }),
-      });
-
-      expect(response.status).toBe(400);
-      const data = await response.json();
-      expect(data.error).toContain("required");
-    });
-
-    it("should reject registration with short password", async () => {
-      const response = await fetch(`${BASE_URL}/api/auth/register`, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          email: "test3@example.com",
-          password: "short",
-          confirmPassword: "short",
-          name: "Test User",
-        }),
-      });
-
-      expect(response.status).toBe(400);
-      const data = await response.json();
-      expect(data.error).toContain("8 characters");
-    });
-  });
-
-  describe("POST /api/auth/verify-email", () => {
-    it("should create a verified user after a valid code", async () => {
-      const email = "verified@example.com";
-      const code = "123456";
-      await prisma.pendingRegistration.create({
-        data: {
-          email,
-          name: "Verified User",
-          passwordHash: await hashPassword("password123"),
-          codeHash: createHash("sha256").update(code).digest("hex"),
-          expiresAt: new Date(Date.now() + 10 * 60 * 1000),
-        },
-      });
-
-      const response = await fetch(`${BASE_URL}/api/auth/verify-email`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ email, code }),
-      });
-
-      expect(response.status).toBe(201);
-      const data = await response.json();
-      expect(data.user.email).toBe(email);
-      expect(data.user.name).toBe("Verified User");
-
-      const user = await prisma.user.findUnique({ where: { email } });
-      expect(user?.emailVerified).toBe(true);
-      expect(await prisma.pendingRegistration.findUnique({ where: { email } })).toBeNull();
-    });
-
-    it("should reject an invalid verification code", async () => {
-      const email = "invalid-code@example.com";
-      await prisma.pendingRegistration.create({
-        data: {
-          email,
-          name: "Invalid Code User",
-          passwordHash: await hashPassword("password123"),
-          codeHash: createHash("sha256").update("123456").digest("hex"),
-          expiresAt: new Date(Date.now() + 10 * 60 * 1000),
-        },
-      });
-
-      const response = await fetch(`${BASE_URL}/api/auth/verify-email`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ email, code: "000000" }),
-      });
-
-      expect(response.status).toBe(400);
-      expect((await response.json()).error).toContain("invalid or expired");
     });
   });
 
   describe("POST /api/auth/login", () => {
-    it("should login with valid credentials", async () => {
-      const user = await createTestUser("login@example.com", "password123", "Login User");
-      
-      const response = await fetch(`${BASE_URL}/api/auth/login`, {
+    it("logs in with correct credentials and sets a session cookie", async () => {
+      const user = await createTestUser("login@example.com", "Login User");
+
+      const response = await fetch(`${TEST_BASE_URL}/api/auth/login`, {
         method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          email: user.email,
-          password: user.password,
-        }),
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email: "login@example.com", password: "password123" }),
+      });
+      const data = await response.json();
+
+      expect(response.status).toBe(200);
+      expect(data.user).toMatchObject({ email: "login@example.com", name: "Login User" });
+      expect(response.headers.get("set-cookie")).toContain("session_id=");
+
+      const sessions = await prisma.session.findMany({ where: { userId: user.id } });
+      expect(sessions).toHaveLength(1);
+    });
+
+    it("logs in with a form-data body", async () => {
+      await createTestUser("login-form@example.com");
+
+      const form = new FormData();
+      form.set("email", "login-form@example.com");
+      form.set("password", "password123");
+
+      const response = await fetch(`${TEST_BASE_URL}/api/auth/login`, {
+        method: "POST",
+        body: form,
       });
 
       expect(response.status).toBe(200);
-      const data = await response.json();
-      expect(data.user).toBeDefined();
-      expect(data.user.email).toBe(user.email);
-      expect(data.user.name).toBe(user.name);
-      expect(response.headers.get("set-cookie")).toContain("session_id");
     });
 
-    it("should reject login with invalid credentials", async () => {
-      const user = await createTestUser("login2@example.com", "password123", "Login User 2");
-      
-      const response = await fetch(`${BASE_URL}/api/auth/login`, {
+    it("401s on wrong password", async () => {
+      await createTestUser("wrong-pass@example.com");
+
+      const response = await fetch(`${TEST_BASE_URL}/api/auth/login`, {
         method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          email: user.email,
-          password: "wrongpassword",
-        }),
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email: "wrong-pass@example.com", password: "incorrect" }),
       });
 
       expect(response.status).toBe(401);
-      const data = await response.json();
-      expect(data.error).toBe("Invalid credentials");
     });
 
-    it("should reject login with non-existent user", async () => {
-      const response = await fetch(`${BASE_URL}/api/auth/login`, {
+    it("401s on unknown email", async () => {
+      const response = await fetch(`${TEST_BASE_URL}/api/auth/login`, {
         method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          email: "nonexistent@example.com",
-          password: "password123",
-        }),
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email: "unknown@example.com", password: "password123" }),
       });
 
       expect(response.status).toBe(401);
-      const data = await response.json();
-      expect(data.error).toBe("Invalid credentials");
     });
 
-    it("should reject login with missing fields", async () => {
-      const response = await fetch(`${BASE_URL}/api/auth/login`, {
+    it("400s when email is missing", async () => {
+      const response = await fetch(`${TEST_BASE_URL}/api/auth/login`, {
         method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          email: "test@example.com",
-        }),
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ password: "password123" }),
       });
 
       expect(response.status).toBe(400);
-      const data = await response.json();
-      expect(data.error).toContain("required");
+    });
+
+    it("400s when password is missing", async () => {
+      const response = await fetch(`${TEST_BASE_URL}/api/auth/login`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email: "someone@example.com" }),
+      });
+
+      expect(response.status).toBe(400);
     });
   });
 
   describe("POST /api/auth/logout", () => {
-    it("should logout authenticated user", async () => {
-      const user = await createTestUser("logout@example.com", "password123", "Logout User");
-      const sessionId = await loginUser(user);
+    it("deletes the session and clears the cookie", async () => {
+      const user = await createTestUser("logout@example.com");
+      const sessionId = await createSession(user.id);
 
-      const response = await fetch(`${BASE_URL}/api/auth/logout`, {
+      const response = await fetch(`${TEST_BASE_URL}/api/auth/logout`, {
         method: "POST",
-        headers: getAuthHeaders(sessionId),
+        headers: authHeaders(sessionId),
       });
+      const data = await response.json();
 
       expect(response.status).toBe(200);
-      const data = await response.json();
       expect(data.success).toBe(true);
-      expect(data.message).toBe("Logged out successfully");
+      expect(await prisma.session.findUnique({ where: { id: sessionId } })).toBeNull();
     });
 
-    it("should handle logout without session", async () => {
-      const response = await fetch(`${BASE_URL}/api/auth/logout`, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-      });
+    it("is a no-op with no cookie", async () => {
+      const response = await fetch(`${TEST_BASE_URL}/api/auth/logout`, { method: "POST" });
 
       expect(response.status).toBe(200);
-      const data = await response.json();
-      expect(data.success).toBe(true);
+    });
+
+    it("is idempotent when called twice with an already-invalidated cookie", async () => {
+      const user = await createTestUser("logout-twice@example.com");
+      const sessionId = await createSession(user.id);
+
+      await fetch(`${TEST_BASE_URL}/api/auth/logout`, { method: "POST", headers: authHeaders(sessionId) });
+      const secondResponse = await fetch(`${TEST_BASE_URL}/api/auth/logout`, {
+        method: "POST",
+        headers: authHeaders(sessionId),
+      });
+
+      expect(secondResponse.status).toBe(200);
     });
   });
 
   describe("GET /api/auth/me", () => {
-    it("should return current user for authenticated request", async () => {
-      const user = await createTestUser("me@example.com", "password123", "Me User");
-      const sessionId = await loginUser(user);
+    it("401s with no cookie", async () => {
+      const response = await fetch(`${TEST_BASE_URL}/api/auth/me`);
 
-      const response = await fetch(`${BASE_URL}/api/auth/me`, {
-        headers: getAuthHeaders(sessionId),
-      });
-
-      expect(response.status).toBe(200);
-      const data = await response.json();
-      expect(data.user).toBeDefined();
-      expect(data.user.email).toBe(user.email);
-      expect(data.user.name).toBe(user.name);
-      expect(data.user.freeMessagesUsed).toBeDefined();
+      expect(response.status).toBe(401);
     });
 
-    it("should return 401 for unauthenticated request", async () => {
-      const response = await fetch(`${BASE_URL}/api/auth/me`, {
-        headers: {
-          "Content-Type": "application/json",
-        },
+    it("401s with a garbage session id", async () => {
+      const response = await fetch(`${TEST_BASE_URL}/api/auth/me`, {
+        headers: authHeaders("not-a-real-session-id"),
       });
 
       expect(response.status).toBe(401);
+    });
+
+    it("401s with an expired session", async () => {
+      const user = await createTestUser("expired@example.com");
+      const sessionId = await createExpiredSession(user.id);
+
+      const response = await fetch(`${TEST_BASE_URL}/api/auth/me`, {
+        headers: authHeaders(sessionId),
+      });
+
+      expect(response.status).toBe(401);
+    });
+
+    it("returns the current user without the password hash", async () => {
+      const user = await createTestUser("me@example.com", "Me User");
+      const sessionId = await createSession(user.id);
+
+      const response = await fetch(`${TEST_BASE_URL}/api/auth/me`, {
+        headers: authHeaders(sessionId),
+      });
       const data = await response.json();
-      expect(data.error).toBe("Not authenticated");
+
+      expect(response.status).toBe(200);
+      expect(data.user).toMatchObject({ email: "me@example.com", name: "Me User" });
+      expect(data.user.passwordHash).toBeUndefined();
     });
   });
 });

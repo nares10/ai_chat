@@ -9,7 +9,9 @@
     "start": "next start",
     "lint": "eslint",
     "db:seed": "bun scripts/seed.ts",
+    "db:test:deploy": "bun --env-file=.env.test prisma migrate deploy",
     "test": "bun test",
+    "test:db": "bun run db:test:deploy && bun --env-file=.env.test test tests/",
     "test:watch": "bun test --watch"
   },
   "dependencies": {

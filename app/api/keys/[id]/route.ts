@@ -4,19 +4,21 @@ import { prisma } from "@/lib/prisma";
 
 export async function DELETE(
   request: Request,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
     const user = await getCurrentUser();
-    
+
     if (!user) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
+    const { id } = await params;
+
     // Check if the key belongs to the user
     const apiKey = await prisma.apiKey.findFirst({
       where: {
-        id: params.id,
+        id,
         userId: user.id,
       },
     });
@@ -30,7 +32,7 @@ export async function DELETE(
 
     await prisma.apiKey.delete({
       where: {
-        id: params.id,
+        id,
       },
     });
 

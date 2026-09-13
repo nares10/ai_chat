@@ -1,36 +1,124 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# ai-chat
 
-## Getting Started
+A self-hosted AI chat application built with Next.js. Users sign up, bring their own
+provider API keys, and chat with OpenAI, Anthropic (Claude), or OpenRouter models with
+streaming responses, conversation history, and a profile dashboard.
 
-First, run the development server:
+## Features
+
+- Chat UI with streaming responses across multiple AI providers
+- Email/password authentication (Argon2 password hashing, DB-backed sessions)
+- Conversation history — create, rename, delete
+- Per-user API key management for each provider
+- Profile dashboard (account details, usage, conversations, providers)
+
+See `features.md` for the full list and what's still in progress.
+
+## Tech stack
+
+- [Next.js 16](https://nextjs.org) (App Router) + React 19
+- [Prisma 6](https://www.prisma.io) + PostgreSQL
+- [Bun](https://bun.sh) for scripts and tests
+- Tailwind CSS 4
+- Argon2 for password hashing, Resend for transactional email
+
+## Prerequisites
+
+- [Bun](https://bun.sh) (used to run scripts and tests; `npm`/`node` also work for `dev`/`build`/`start`)
+- A PostgreSQL database
+
+## 1. Clone and install
 
 ```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
+git clone <repo-url>
+cd ai-chat
+bun install
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+## 2. Configure environment variables
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+Create a `.env` file in the project root:
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+```bash
+# Required — PostgreSQL connection string
+DATABASE_URL="postgresql://postgres:postgres@localhost:5432/myapp"
 
-## Learn More
+# Required to send emails (e.g. email verification). Get a key from https://resend.com
+RESEND_API_KEY="your-resend-api-key"
+```
 
-To learn more about Next.js, take a look at the following resources:
+`.env*` files are git-ignored — never commit real credentials.
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+AI provider API keys (OpenAI, Anthropic, OpenRouter) are **not** environment variables —
+each user adds their own keys after signing in, via the API key management page.
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+## 3. Set up the database
 
-## Deploy on Vercel
+Generate the Prisma client and apply migrations:
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+```bash
+bunx prisma generate
+bunx prisma migrate deploy
+```
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+Optionally seed the database with example users, conversations, and messages:
+
+```bash
+bun run db:seed
+```
+
+By default the seed script skips databases that already contain users. To wipe and
+reseed, set `SEED_FORCE_RESET=true`.
+
+## 4. Run the app
+
+```bash
+bun run dev
+```
+
+Open [http://localhost:3000](http://localhost:3000).
+
+## Testing
+
+Tests run against a separate database whose `DATABASE_URL` must contain `test` in the
+database name (a safety check to prevent wiping real data).
+
+Create a `.env.test` file:
+
+```bash
+DATABASE_URL="postgresql://postgres:postgres@localhost:5432/myapp_test"
+```
+
+Then run:
+
+```bash
+bun run test:db      # deploy migrations to the test DB, then run the test suite
+bun test             # run tests without the migration step
+bun run test:watch   # watch mode
+```
+
+## Available scripts
+
+| Script                | Description                                      |
+| --------------------- | ------------------------------------------------- |
+| `bun run dev`          | Start the dev server                               |
+| `bun run build`        | Build for production                               |
+| `bun run start`        | Start the production server                        |
+| `bun run lint`         | Run ESLint                                         |
+| `bun run db:seed`      | Seed the database                                  |
+| `bun run db:test:deploy` | Apply migrations to the test database (`.env.test`) |
+| `bun run test`         | Run tests                                          |
+| `bun run test:db`      | Deploy test DB migrations, then run tests          |
+| `bun run test:watch`   | Run tests in watch mode                            |
+
+## Project structure
+
+```
+app/          Next.js App Router pages and API routes
+components/   React components
+hooks/        React hooks
+lib/          Server-side helpers (Prisma client, auth/session, password hashing)
+prisma/       Prisma schema and generated client
+migrations/   Database migrations
+tests/        Test suite
+```

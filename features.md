@@ -12,14 +12,12 @@
 - **Password Hashing**: Argon2 integration for secure password storage
 - **Authentication UI**: Login and registration pages with form validation
 - **Conversation History**: List of conversations with provider information
+- **API Key Management**: Save, list, and manage provider API keys
+- **Profile Dashboard**: View account details, usage, conversations, and providers
+- **Conversation Management**: Rename and delete conversations
 
 ## Next:
 - Add message search functionality
-- 
-- 12 Test failed , look into that 
-- Dockerise Application
-- Add export conversation feature
+- Investigate the 12 failing tests
+- Containerise the application using Docker
 - Email Verification in Signup process
-
-## Fixes
-- Fix free message count not updating after sending a message

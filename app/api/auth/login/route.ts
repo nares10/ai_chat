@@ -5,12 +5,15 @@ import { createSession } from "@/lib/session";
 
 export async function POST(request: Request) {
   try {
+    console.log("email");
     const body = request.headers.get("content-type")?.includes("application/json")
       ? await request.json()
       : Object.fromEntries((await request.formData()).entries());
 
     const email = body.email?.trim().toLowerCase();
     const password = body.password;
+    console.log("email", email);
+    console.log("password", password);
 
     if (!email || !password) {
       return NextResponse.json(

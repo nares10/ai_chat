@@ -1,201 +1,155 @@
-import { describe, it, expect, beforeAll, afterAll } from "bun:test";
+/**
+ * These tests only exercise the deterministic, networkless branches of POST /api/chat.
+ * The real successful-completion path (provider dispatch -> streamed text -> final
+ * `done:true` chunk) requires live AI provider credentials that aren't available in this
+ * environment, so it is intentionally not tested here. These tests assume the server under
+ * test was started with no AI_PROVIDER/OPENAI_API_KEY/ANTHROPIC_API_KEY/OPENROUTER_API_KEY
+ * env vars set (matching this repo's .env/.env.test, which only set DATABASE_URL).
+ */
+import { afterAll, beforeEach, describe, expect, it } from "bun:test";
+import { prisma } from "../lib/prisma";
+import { FREE_MESSAGE_LIMIT } from "../lib/freeMessages";
 import {
-  setupTestDatabase,
-  createTestUser,
-  loginUser,
-  createApiKey,
-  cleanupTestDatabase,
-  getAuthHeaders,
+  TEST_BASE_URL,
+  authHeaders,
+  createAuthedUser,
+  createTestConversation,
+  resetTestDatabase,
+  setFreeMessagesUsed,
 } from "./setup";
 
-describe("Chat API", () => {
-  let testUser: any;
-  let sessionId: string;
-
-  beforeAll(async () => {
-    await setupTestDatabase();
-    testUser = await createTestUser("chat@example.com", "password123", "Chat User");
-    sessionId = await loginUser(testUser);
+describe("POST /api/chat", () => {
+  beforeEach(async () => {
+    await resetTestDatabase();
   });
 
   afterAll(async () => {
-    await cleanupTestDatabase();
+    await resetTestDatabase();
+    await prisma.$disconnect();
   });
 
-  describe("POST /api/chat", () => {
-    it("should create a new conversation and send message", async () => {
-      const response = await fetch("http://localhost:3000/api/chat", {
-        method: "POST",
-        headers: getAuthHeaders(sessionId),
-        body: JSON.stringify({
-          message: "Hello, this is a test message",
-          provider: "openrouter",
-        }),
-      });
-
-      expect(response.status).toBe(200);
-      expect(response.headers.get("content-type")).toContain("text/event-stream");
-
-      // Read the stream
-      const reader = response.body?.getReader();
-      const decoder = new TextDecoder();
-      let fullText = "";
-      let conversationId = "";
-
-      if (reader) {
-        while (true) {
-          const { done, value } = await reader.read();
-          if (done) break;
-
-          const chunk = decoder.decode(value, { stream: true });
-          const lines = chunk.split("\n\n");
-
-          for (const line of lines) {
-            if (!line.startsWith("data:")) continue;
-
-            const raw = line.replace(/^data:\s*/, "").trim();
-            if (!raw || raw === "[DONE]") continue;
-
-            try {
-              const payload = JSON.parse(raw);
-              if (payload.text) {
-                fullText += payload.text;
-              }
-              if (payload.conversationId) {
-                conversationId = payload.conversationId;
-              }
-            } catch {
-              // Ignore malformed chunks
-            }
-          }
-        }
-      }
-
-      expect(fullText.length).toBeGreaterThan(0);
-      expect(conversationId).toBeDefined();
+  it("401s with no session cookie", async () => {
+    const response = await fetch(`${TEST_BASE_URL}/api/chat`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ message: "Hello" }),
     });
 
-    it("should continue existing conversation", async () => {
-      // First message to create conversation
-      const firstResponse = await fetch("http://localhost:3000/api/chat", {
-        method: "POST",
-        headers: getAuthHeaders(sessionId),
-        body: JSON.stringify({
-          message: "First message",
-          provider: "openrouter",
-        }),
-      });
+    expect(response.status).toBe(401);
+  });
 
-      expect(firstResponse.status).toBe(200);
-
-      // Extract conversation ID from first response
-      const reader = firstResponse.body?.getReader();
-      const decoder = new TextDecoder();
-      let conversationId = "";
-
-      if (reader) {
-        while (true) {
-          const { done, value } = await reader.read();
-          if (done) break;
-
-          const chunk = decoder.decode(value, { stream: true });
-          const lines = chunk.split("\n\n");
-
-          for (const line of lines) {
-            if (!line.startsWith("data:")) continue;
-            const raw = line.replace(/^data:\s*/, "").trim();
-            if (!raw || raw === "[DONE]") continue;
-
-            try {
-              const payload = JSON.parse(raw);
-              if (payload.conversationId) {
-                conversationId = payload.conversationId;
-              }
-            } catch {
-              // Ignore malformed chunks
-            }
-          }
-        }
-      }
-
-      // Second message to continue conversation
-      const secondResponse = await fetch("http://localhost:3000/api/chat", {
-        method: "POST",
-        headers: getAuthHeaders(sessionId),
-        body: JSON.stringify({
-          message: "Second message",
-          provider: "openrouter",
-          conversationId: conversationId,
-        }),
-      });
-
-      expect(secondResponse.status).toBe(200);
+  it("401s with an invalid/nonexistent session id", async () => {
+    const response = await fetch(`${TEST_BASE_URL}/api/chat`, {
+      method: "POST",
+      headers: authHeaders("not-a-real-session-id"),
+      body: JSON.stringify({ message: "Hello" }),
     });
 
-    it("should reject request without message", async () => {
-      const response = await fetch("http://localhost:3000/api/chat", {
-        method: "POST",
-        headers: getAuthHeaders(sessionId),
-        body: JSON.stringify({
-          provider: "openrouter",
-        }),
-      });
+    expect(response.status).toBe(401);
+  });
 
-      expect(response.status).toBe(400);
-      const data = await response.json();
-      expect(data.error).toBe("Message is required.");
+  it("400s on an empty/whitespace-only message", async () => {
+    const { headers } = await createAuthedUser("chat-empty@example.com");
+
+    const response = await fetch(`${TEST_BASE_URL}/api/chat`, {
+      method: "POST",
+      headers,
+      body: JSON.stringify({ message: "   " }),
     });
 
-    it("should return 401 for unauthenticated request", async () => {
-      const response = await fetch("http://localhost:3000/api/chat", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          message: "Test message",
-          provider: "openrouter",
-        }),
-      });
+    expect(response.status).toBe(400);
+  });
 
-      expect(response.status).toBe(401);
-      const data = await response.json();
-      expect(data.error).toBe("Unauthorized");
+  it("400s on a non-string message", async () => {
+    const { headers } = await createAuthedUser("chat-non-string@example.com");
+
+    const response = await fetch(`${TEST_BASE_URL}/api/chat`, {
+      method: "POST",
+      headers,
+      body: JSON.stringify({ message: 12345 }),
     });
 
-    it("should handle different providers", async () => {
-      const providers = ["openrouter", "openai", "anthropic"];
+    expect(response.status).toBe(400);
+  });
 
-      for (const provider of providers) {
-        const response = await fetch("http://localhost:3000/api/chat", {
-          method: "POST",
-          headers: getAuthHeaders(sessionId),
-          body: JSON.stringify({
-            message: `Test message for ${provider}`,
-            provider: provider,
-          }),
-        });
+  it("403s once the free message limit is reached, with no side effects", async () => {
+    const { user, headers } = await createAuthedUser("chat-limit@example.com");
+    await setFreeMessagesUsed(user.id, FREE_MESSAGE_LIMIT);
 
-        // May fail due to missing API keys, but should not crash
-        expect([200, 500]).toContain(response.status);
-      }
+    const response = await fetch(`${TEST_BASE_URL}/api/chat`, {
+      method: "POST",
+      headers,
+      body: JSON.stringify({ message: "One more message" }),
+    });
+    const data = await response.json();
+
+    expect(response.status).toBe(403);
+    expect(data.requiresApiKey).toBe(true);
+
+    expect(await prisma.conversation.findMany({ where: { userId: user.id } })).toHaveLength(0);
+    const dbUser = await prisma.user.findUnique({ where: { id: user.id } });
+    expect(dbUser?.freeMessagesUsed).toBe(FREE_MESSAGE_LIMIT);
+  });
+
+  it("500s when under the limit but no provider API key is configured, after persisting the conversation and message", async () => {
+    const { user, headers } = await createAuthedUser("chat-no-key@example.com");
+
+    const response = await fetch(`${TEST_BASE_URL}/api/chat`, {
+      method: "POST",
+      headers,
+      body: JSON.stringify({ message: "Hello there" }),
+    });
+    const data = await response.json();
+
+    expect(response.status).toBe(500);
+    expect(response.headers.get("content-type")).not.toContain("text/event-stream");
+    expect(String(data.error)).toMatch(/API_KEY/);
+
+    const dbUser = await prisma.user.findUnique({ where: { id: user.id } });
+    expect(dbUser?.freeMessagesUsed).toBe(1);
+
+    const conversations = await prisma.conversation.findMany({ where: { userId: user.id } });
+    expect(conversations).toHaveLength(1);
+
+    const messages = await prisma.message.findMany({ where: { conversationId: conversations[0].id } });
+    expect(messages).toHaveLength(1);
+    expect(messages[0].role).toBe("user");
+    expect(messages[0].content).toBe("Hello there");
+  });
+
+  it("reuses an existing conversation owned by the caller instead of creating a new one", async () => {
+    const { user, headers } = await createAuthedUser("chat-reuse@example.com");
+    const conversation = await createTestConversation(user.id);
+
+    await fetch(`${TEST_BASE_URL}/api/chat`, {
+      method: "POST",
+      headers,
+      body: JSON.stringify({ message: "Continuing", conversationId: conversation.id }),
     });
 
-    it("should use custom API key when provided", async () => {
-      const apiKey = await createApiKey(testUser.id, "sk-custom-key", "Custom Key", "openai");
+    const conversations = await prisma.conversation.findMany({ where: { userId: user.id } });
+    expect(conversations).toHaveLength(1);
+    expect(conversations[0].id).toBe(conversation.id);
+  });
 
-      const response = await fetch("http://localhost:3000/api/chat", {
-        method: "POST",
-        headers: getAuthHeaders(sessionId),
-        body: JSON.stringify({
-          message: "Test with custom key",
-          provider: "openai",
-          apiKey: apiKey.key,
-        }),
-      });
+  it("falls back to creating a new conversation when the given conversationId belongs to another user", async () => {
+    const { user: owner } = await createAuthedUser("chat-victim@example.com");
+    const { user: attacker, headers: attackerHeaders } = await createAuthedUser(
+      "chat-attacker@example.com",
+    );
+    const othersConversation = await createTestConversation(owner.id);
 
-      // May fail due to invalid key, but should accept the parameter
-      expect([200, 500]).toContain(response.status);
+    await fetch(`${TEST_BASE_URL}/api/chat`, {
+      method: "POST",
+      headers: attackerHeaders,
+      body: JSON.stringify({ message: "Hijack attempt", conversationId: othersConversation.id }),
     });
+
+    const attackerConversations = await prisma.conversation.findMany({ where: { userId: attacker.id } });
+    expect(attackerConversations).toHaveLength(1);
+    expect(attackerConversations[0].id).not.toBe(othersConversation.id);
+
+    const ownerConversations = await prisma.conversation.findMany({ where: { userId: owner.id } });
+    expect(ownerConversations).toHaveLength(1);
   });
 });
