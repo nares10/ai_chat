@@ -19,7 +19,7 @@
 
 ## Next:
 - Add message search functionality
-- i 
+- i w
 - Containerise the application using Docker
 - Add export conversation feature
 
