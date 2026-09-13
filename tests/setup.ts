@@ -1,5 +1,12 @@
 import { hashPassword } from "../lib/password";
 import { prisma } from "../lib/prisma";
+import {
+  CODE_TTL_MS,
+  VERIFIED_TOKEN_TTL_MS,
+  generateVerificationToken,
+  hashCode,
+  hashToken,
+} from "../lib/verification";
 
 export const TEST_BASE_URL = process.env.TEST_BASE_URL || "http://localhost:3010";
 
@@ -16,6 +23,7 @@ function assertTestDatabase() {
 
 export async function resetTestDatabase() {
   assertTestDatabase();
+  await prisma.pendingRegistration.deleteMany();
   await prisma.message.deleteMany();
   await prisma.conversation.deleteMany();
   await prisma.apiKey.deleteMany();
@@ -33,6 +41,43 @@ export async function createTestUser(email: string, name = "Test User") {
       emailVerified: true,
     },
   });
+}
+
+export async function createPendingRegistration(
+  email: string,
+  name: string,
+  code: string,
+  overrides: { expiresAt?: Date } = {},
+) {
+  return await prisma.pendingRegistration.create({
+    data: {
+      email,
+      name,
+      codeHash: hashCode(code),
+      expiresAt: overrides.expiresAt ?? new Date(Date.now() + CODE_TTL_MS),
+    },
+  });
+}
+
+/**
+ * Creates a pending registration that already passed the code step, and returns
+ * the token that /api/auth/complete-registration expects.
+ */
+export async function verifyPendingRegistration(email: string, name: string) {
+  const verificationToken = generateVerificationToken();
+
+  await prisma.pendingRegistration.create({
+    data: {
+      email,
+      name,
+      codeHash: hashCode("000000"),
+      expiresAt: new Date(Date.now() + VERIFIED_TOKEN_TTL_MS),
+      verifiedAt: new Date(),
+      verificationTokenHash: hashToken(verificationToken),
+    },
+  });
+
+  return verificationToken;
 }
 
 export async function createSession(userId: string, expiresAt?: Date) {

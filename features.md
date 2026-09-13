@@ -15,9 +15,13 @@
 - **API Key Management**: Save, list, and manage provider API keys
 - **Profile Dashboard**: View account details, usage, conversations, and providers
 - **Conversation Management**: Rename and delete conversations
+- **Email Verification in Signup**: Registration collects name and email, mails a 6-digit code, and only creates the account once the code is confirmed and a password is set
 
 ## Next:
 - Add message search functionality
 - Investigate the 12 failing tests
 - Containerise the application using Docker
-- Email Verification in Signup process
+- Add export conversation feature
+
+## Fixes
+- Fix free message count not updating after sending a message
