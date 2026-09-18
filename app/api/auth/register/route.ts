@@ -28,18 +28,20 @@ export async function POST(request: Request) {
 				{ status: 400 }
 			);
 		}
+
 		if (password.length < 8) {
 			return NextResponse.json(
 				{ error: "Password must be at least 8 characters" },
 				{ status: 400 }
 			);
 		}
-		if (isValidEmail(email)){
+		if (!isValidEmail(email)) {
 			return NextResponse.json(
 				{ error: "Invalid Email" },
 				{ status: 400 }
 			);
 		}
+
 		if (confirmPassword !== undefined && password !== confirmPassword) {
 			return NextResponse.json(
 				{ error: "Passwords do not match" },
@@ -69,10 +71,11 @@ export async function POST(request: Request) {
 			select: {
 				id: true,
 				email: true,
-				passwordHash: true,
 				name: true,
 			},
 		});
+
+
 		return NextResponse.json({ user }, { status: 201 });
 	} catch (error) {
 		console.error(error);

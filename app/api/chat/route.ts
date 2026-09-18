@@ -164,6 +164,8 @@ export async function POST(request: NextRequest) {
       });
     }
 
+    // Get conversation history for context (user message is saved once the
+    // assistant replies, so it isn't in the DB yet — append it below).
     const conversationHistory = await prisma.message.findMany({
       where: {
         conversationId: conversation.id,
@@ -174,22 +176,13 @@ export async function POST(request: NextRequest) {
       take: 10, // Limit to last 10 messages for context
     });
 
-    const userMessage = await prisma.message.create({
-      data: {
-        conversationId: conversation.id,
-        role: "user",
-        content: message,
-      },
-    });
-
-    // Format messages for AI providers without duplicating the just-saved user
-    // message in the prompt context.
+    // Format messages for AI providers
     const messagesForAI = [
       ...conversationHistory.map(msg => ({
         role: msg.role as "user" | "assistant",
         content: msg.content,
       })),
-      { role: "user" as const, content: userMessage.content },
+      { role: "user" as const, content: message },
     ];
 
     let upstream: Response;
@@ -247,10 +240,20 @@ export async function POST(request: NextRequest) {
             }
           }
 
-          // Save the assistant reply once it has actually arrived. The user
-          // message is persisted before the provider call so a missing API key
-          // or upstream error still leaves a consistent conversation history.
+          // Save the user message and the assistant's reply together, once the
+          // reply has actually arrived — an errored/empty reply leaves no
+          // orphaned user message in the conversation. Two separate creates
+          // (rather than createMany) so their createdAt timestamps stay
+          // distinct for ordering.
           if (fullResponse) {
+            await prisma.message.create({
+              data: {
+                conversationId: conversation.id,
+                role: "user",
+                content: message,
+              },
+            });
+
             await prisma.message.create({
               data: {
                 conversationId: conversation.id,
