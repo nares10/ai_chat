@@ -33,5 +33,6 @@
     ".next/dev/types/**/*.ts",
     "**/*.mts"
   ],
-  "exclude": ["node_modules"]
+  "types": ["bun-types"],
+  "exclude": ["node_modules", "tests",  "migrations"]
 }

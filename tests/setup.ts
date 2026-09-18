@@ -1,5 +1,6 @@
 import { hashPassword } from "../lib/password";
 import { prisma } from "../lib/prisma";
+import "dotenv";
 import {
   CODE_TTL_MS,
   VERIFIED_TOKEN_TTL_MS,
@@ -8,10 +9,10 @@ import {
   hashToken,
 } from "../lib/verification";
 
-export const TEST_BASE_URL = process.env.TEST_BASE_URL || "http://localhost:3010";
+export const TEST_BASE_URL = process.env.BASE_URL || "http://localhost:3000";
 
 function assertTestDatabase() {
-  const databaseUrl = process.env.DATABASE_URL;
+  const databaseUrl = process.env.TEST_DATABASE_URL;
   const databaseName = databaseUrl ? new URL(databaseUrl).pathname : "";
 
   if (!databaseName.toLowerCase().includes("test")) {

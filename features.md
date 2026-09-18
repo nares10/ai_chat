@@ -19,9 +19,8 @@
 
 ## Next:
 - Add message search functionality
-- Investigate the 12 failing tests
+- i w
 - Containerise the application using Docker
 - Add export conversation feature
 
-## Fixes
-- Fix free message count not updating after sending a message
+## Fixed

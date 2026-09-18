@@ -164,16 +164,6 @@ export async function POST(request: NextRequest) {
       });
     }
 
-    // Save user message to database
-    const userMessage = await prisma.message.create({
-      data: {
-        conversationId: conversation.id,
-        role: "user",
-        content: message,
-      },
-    });
-
-    // Get conversation history for context
     const conversationHistory = await prisma.message.findMany({
       where: {
         conversationId: conversation.id,
@@ -184,11 +174,23 @@ export async function POST(request: NextRequest) {
       take: 10, // Limit to last 10 messages for context
     });
 
-    // Format messages for AI providers
-    const messagesForAI = conversationHistory.map(msg => ({
-      role: msg.role as "user" | "assistant",
-      content: msg.content,
-    }));
+    const userMessage = await prisma.message.create({
+      data: {
+        conversationId: conversation.id,
+        role: "user",
+        content: message,
+      },
+    });
+
+    // Format messages for AI providers without duplicating the just-saved user
+    // message in the prompt context.
+    const messagesForAI = [
+      ...conversationHistory.map(msg => ({
+        role: msg.role as "user" | "assistant",
+        content: msg.content,
+      })),
+      { role: "user" as const, content: userMessage.content },
+    ];
 
     let upstream: Response;
 
@@ -245,7 +247,9 @@ export async function POST(request: NextRequest) {
             }
           }
 
-          // Save assistant message to database after streaming is complete
+          // Save the assistant reply once it has actually arrived. The user
+          // message is persisted before the provider call so a missing API key
+          // or upstream error still leaves a consistent conversation history.
           if (fullResponse) {
             await prisma.message.create({
               data: {
